@@ -39,7 +39,7 @@ RELEVANT_PROJECT_FILES = (
 INSTALLABLE_EXTENSIONS = (".whl", ".zip", ".tar", ".tar.gz", ".tgz")
 
 
-def is_type_checking():
+def is_type_checking() -> bool:
     try:
         from typing import TYPE_CHECKING
     except ImportError:

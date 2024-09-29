@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import ast
 import configparser
 import os
@@ -10,7 +12,13 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    AnyStr,
+    Mapping,
+    Sequence,
+)
 from urllib.parse import urlparse, urlsplit, urlunsplit
 
 from pipenv.patched.pip._internal.models.link import Link
@@ -48,6 +56,9 @@ from .constants import (
     VCS_SCHEMES,
 )
 from .markers import PipenvMarkers
+
+if TYPE_CHECKING:
+    from pipenv._types import SourceDict
 
 
 def get_version(pipfile_entry):
@@ -144,7 +155,7 @@ def pep423_name(name):
         return name
 
 
-def translate_markers(pipfile_entry):
+def translate_markers(pipfile_entry: dict[str, str]) -> dict[str, str]:
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -303,7 +314,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     return {name: lockfile}
 
 
-def as_pipfile(dep: InstallRequirement) -> Dict[str, Any]:
+def as_pipfile(dep: InstallRequirement) -> dict[str, Any]:
     """Create a pipfile entry for the given InstallRequirement."""
     pipfile_dict = {}
     name = dep.name
@@ -371,7 +382,7 @@ def is_editable_path(path):
 
 def dependency_as_pip_install_line(
     dep_name: str,
-    dep: Union[str, Mapping],
+    dep: str | Mapping,
     include_hashes: bool,
     include_markers: bool,
     include_index: bool,
@@ -460,12 +471,12 @@ def dependency_as_pip_install_line(
 
 
 def convert_deps_to_pip(
-    deps,
-    indexes=None,
-    include_hashes=True,
-    include_markers=True,
-    include_index=False,
-):
+    deps: dict[str, str],
+    indexes: list[SourceDict] | None = None,
+    include_hashes: bool = True,
+    include_markers: bool = True,
+    include_index: bool = False,
+) -> dict[str, str]:
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     dependencies = {}
     if indexes is None:
@@ -478,7 +489,7 @@ def convert_deps_to_pip(
     return dependencies
 
 
-def parse_metadata_file(content: str):
+def parse_metadata_file(content: str) -> str | None:
     """
     Parse a METADATA file to get the package name.
 
@@ -873,7 +884,7 @@ def get_link_from_line(line):
     # We can assume a lot of things if this is a local filesystem path.
     if "://" not in fixed_line:
         p = Path(fixed_line).absolute()  # type: Path
-        p.as_posix()  # type: Optional[str]
+        # p.as_posix()  # type: Optional[str]
         uri = p.as_uri()  # type: str
         link = create_link(uri)  # type: Link
         return link
@@ -921,18 +932,18 @@ def expand_env_variables(line) -> AnyStr:
 
 def expansive_install_req_from_line(
     pip_line: str,
-    comes_from: Optional[Union[str, InstallRequirement]] = None,
+    comes_from: str | InstallRequirement | None = None,
     *,
-    use_pep517: Optional[bool] = None,
+    use_pep517: bool | None = None,
     isolated: bool = False,
-    global_options: Optional[List[str]] = None,
-    hash_options: Optional[Dict[str, List[str]]] = None,
+    global_options: list[str] | None = None,
+    hash_options: dict[str, list[str]] | None = None,
     constraint: bool = False,
-    line_source: Optional[str] = None,
+    line_source: str | None = None,
     user_supplied: bool = False,
-    config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
+    config_settings: dict[str, str | list[str]] | None = None,
     expand_env: bool = False,
-) -> (InstallRequirement, str):
+) -> tuple[InstallRequirement, str]:
     """Create an InstallRequirement from a pip-style requirement line.
     InstallRequirement is a pip internal construct that represents an installable requirement,
     and is used as an intermediary between the pip command and the resolver.
@@ -1128,7 +1139,7 @@ def from_pipfile(name, pipfile):
     return cls_inst
 
 
-def get_constraints_from_deps(deps):
+def get_constraints_from_deps(deps) -> set[str]:
     """Get constraints from dictionary-formatted dependency"""
     constraints = set()
     for dep_name, dep_version in deps.items():
@@ -1160,10 +1171,10 @@ def get_constraints_from_deps(deps):
 
 
 def prepare_constraint_file(
-    constraints,
-    directory=None,
-    sources=None,
-    pip_args=None,
+    constraints: set[str],
+    directory: str | None = None,
+    sources: list[str] | None = None,
+    pip_args: list[str] | None = None,
 ):
     if not directory:
         directory = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")

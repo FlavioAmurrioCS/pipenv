@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import os
 import sys
 from functools import lru_cache
-from typing import Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -12,28 +13,27 @@ from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv
 from pipenv.vendor import click
 
-if TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.typing_extensions import STRING_TYPE
-
 if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
 
 def ensure_project(
-    project,
+    project: Project,
     python=None,
-    validate=True,
-    system=False,
-    warn=True,
+    validate: bool=True,
+    system: bool=False,
+    warn: bool=True,
     site_packages=None,
-    deploy=False,
-    skip_requirements=False,
+    deploy: bool=False,
+    skip_requirements: bool=False,
     pypi_mirror=None,
-    clear=False,
+    clear: bool=False,
     categories=None,
-):
+) -> None:
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     # Automatically use an activated virtualenv.
@@ -98,7 +98,7 @@ def ensure_project(
 
 
 @lru_cache
-def get_setuptools_version() -> Optional["STRING_TYPE"]:
+def get_setuptools_version() -> str | None:
     try:
         setuptools_dist = importlib_metadata.distribution("setuptools")
         return str(setuptools_dist.version)
@@ -106,7 +106,7 @@ def get_setuptools_version() -> Optional["STRING_TYPE"]:
         return None
 
 
-def get_default_pyproject_backend():
+def get_default_pyproject_backend() -> str:
     # type: () -> STRING_TYPE
     st_version = get_setuptools_version()
     if st_version is not None:

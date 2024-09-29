@@ -13,7 +13,7 @@ sys.path.insert(0, PIP_ROOT)
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 
-def _ensure_modules():
+def _ensure_modules() -> None:
     # Ensure when pip gets invoked it uses our patched version
     spec = importlib.util.spec_from_file_location(
         "pip",

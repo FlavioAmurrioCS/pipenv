@@ -14,6 +14,7 @@ from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
 
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
+from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
 
@@ -88,7 +89,7 @@ def normalize_drive(path):
     return path
 
 
-def path_to_url(path):
+def path_to_url(path: str) -> str:
     """Convert the supplied local path to a file uri.
 
     :param str path: A string pointing to or representing a local path
@@ -116,7 +117,9 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
+def open_file(
+    link: Link | str, session: Optional[PipSession] = None, stream: bool = False
+):
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
