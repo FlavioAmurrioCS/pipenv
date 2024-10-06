@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import contextlib
 import os
@@ -7,9 +9,13 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import get_terminal_size
+from typing import TYPE_CHECKING
 
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor import shellingham
+
+if TYPE_CHECKING:
+    from pipenv.project import Project
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure
 
@@ -18,7 +24,7 @@ def _build_info(value):
     return (os.path.splitext(os.path.basename(value))[0], value)
 
 
-def detect_info(project):
+def detect_info(project: Project) -> tuple[str, str]:
     if project.s.PIPENV_SHELL_EXPLICIT:
         return _build_info(project.s.PIPENV_SHELL_EXPLICIT)
     try:
@@ -29,7 +35,7 @@ def detect_info(project):
     raise ShellDetectionFailure
 
 
-def _get_activate_script(cmd, venv):
+def _get_activate_script(cmd: str, venv: str) -> str:
     """Returns the string to activate a virtualenv.
 
     This is POSIX-only at the moment since the compat (pexpect-based) shell
@@ -77,7 +83,7 @@ def _handover(cmd, args):
 
 
 class Shell:
-    def __init__(self, cmd):
+    def __init__(self, cmd: str):
         self.cmd = cmd
         self.args = []
 
@@ -107,7 +113,7 @@ class Shell:
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
 
-    def fork_compat(self, venv, cwd, args):
+    def fork_compat(self, venv: str, cwd: str, args: tuple[()]):
         from .vendor import pexpect
 
         # Grab current terminal dimensions to replace the hardcoded default
@@ -236,7 +242,7 @@ SHELL_LOOKUP = collections.defaultdict(
 )
 
 
-def _detect_emulator():
+def _detect_emulator() -> str:
     keys = []
     if os.environ.get("CMDER_ROOT"):
         keys.append("cmder")
@@ -245,7 +251,7 @@ def _detect_emulator():
     return ",".join(keys)
 
 
-def choose_shell(project):
+def choose_shell(project: Project) -> Bash:
     emulator = project.s.PIPENV_EMULATOR.lower() or _detect_emulator()
     type_, command = detect_info(project)
     shell_types = SHELL_LOOKUP[type_]

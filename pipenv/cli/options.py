@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import re
+from typing import TYPE_CHECKING, Callable
 
 from pipenv.project import Project
 from pipenv.utils import console, err
@@ -16,13 +19,18 @@ from pipenv.vendor.click import (
 from pipenv.vendor.click import types as click_types
 from pipenv.vendor.click_didyoumean import DYMMixin
 
+if TYPE_CHECKING:
+    import pipenv.vendor.click.core
+
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "auto_envvar_prefix": "PIPENV"}
 
 
 class PipenvGroup(DYMMixin, Group):
     """Custom Group class provides formatted main help"""
 
-    def get_help_option(self, ctx):
+    def get_help_option(
+        self, ctx: pipenv.vendor.click.core.Context
+    ) -> pipenv.vendor.click.core.Option:
         from pipenv.utils.display import format_help
 
         """Override for showing formatted main help via --help and -h options"""
@@ -90,7 +98,7 @@ class LockOptions:
 pass_state = make_pass_decorator(State, ensure=True)
 
 
-def index_option(f):
+def index_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.index = value
@@ -107,7 +115,7 @@ def index_option(f):
     )(f)
 
 
-def editable_option(f):
+def editable_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.editables.extend(value)
@@ -124,7 +132,7 @@ def editable_option(f):
     )(f)
 
 
-def ignore_pipfile_option(f):
+def ignore_pipfile_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.ignore_pipfile = value
@@ -142,7 +150,7 @@ def ignore_pipfile_option(f):
     )(f)
 
 
-def _dev_option(f, help_text):
+def _dev_option(f: Callable, help_text: str) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.dev = value
@@ -161,7 +169,7 @@ def _dev_option(f, help_text):
     )(f)
 
 
-def categories_option(f):
+def categories_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -178,21 +186,21 @@ def categories_option(f):
     )(f)
 
 
-def install_dev_option(f):
+def install_dev_option(f: Callable) -> Callable:
     return _dev_option(f, "Install both develop and default packages")
 
 
-def lock_dev_option(f):
+def lock_dev_option(f: Callable) -> Callable:
     return _dev_option(f, "Generate both develop and default requirements")
 
 
-def uninstall_dev_option(f):
+def uninstall_dev_option(f: Callable) -> Callable:
     return _dev_option(
         f, "Deprecated (as it has no effect). May be removed in a future release."
     )
 
 
-def pre_option(f):
+def pre_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.pre = value
@@ -209,7 +217,7 @@ def pre_option(f):
     )(f)
 
 
-def package_arg(f):
+def package_arg(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.packages.extend(value)
@@ -224,7 +232,7 @@ def package_arg(f):
     )(f)
 
 
-def extra_pip_args(f):
+def extra_pip_args(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -241,7 +249,7 @@ def extra_pip_args(f):
     )(f)
 
 
-def python_option(f):
+def python_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value is not None:
@@ -260,7 +268,7 @@ def python_option(f):
     )(f)
 
 
-def pypi_mirror_option(f):
+def pypi_mirror_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         value = value or state.project.s.PIPENV_PYPI_MIRROR
@@ -277,7 +285,7 @@ def pypi_mirror_option(f):
     )(f)
 
 
-def verbose_option(f):
+def verbose_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -300,7 +308,7 @@ def verbose_option(f):
     )(f)
 
 
-def quiet_option(f):
+def quiet_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -323,7 +331,7 @@ def quiet_option(f):
     )(f)
 
 
-def site_packages_option(f):
+def site_packages_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         validate_bool_or_none(ctx, param, value)
@@ -341,7 +349,7 @@ def site_packages_option(f):
     )(f)
 
 
-def clear_option(f):
+def clear_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.clear = value
@@ -358,7 +366,7 @@ def clear_option(f):
     )(f)
 
 
-def system_option(f):
+def system_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value is not None:
@@ -377,7 +385,7 @@ def system_option(f):
     )(f)
 
 
-def requirementstxt_option(f):
+def requirementstxt_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -396,7 +404,7 @@ def requirementstxt_option(f):
     )(f)
 
 
-def dev_only_flag(f):
+def dev_only_flag(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
@@ -413,7 +421,7 @@ def dev_only_flag(f):
     )(f)
 
 
-def deploy_option(f):
+def deploy_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.deploy = value
@@ -430,7 +438,7 @@ def deploy_option(f):
     )(f)
 
 
-def lock_only_option(f):
+def lock_only_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.lock_only = value
@@ -447,13 +455,21 @@ def lock_only_option(f):
     )(f)
 
 
-def setup_verbosity(ctx, param, value):
+def setup_verbosity(
+    ctx: pipenv.vendor.click.core.Context,
+    param: pipenv.vendor.click.core.Option,
+    value: int,
+):
     if not value:
         return
     ctx.ensure_object(State).project.s.PIPENV_VERBOSITY = value
 
 
-def validate_python_path(ctx, param, value):
+def validate_python_path(
+    ctx: pipenv.vendor.click.core.Context,
+    param: pipenv.vendor.click.core.Option,
+    value: str,
+) -> str:
     # Validating the Python path is complicated by accepting a number of
     # friendly options: the default will be boolean False to enable
     # autodetection but it may also be a value which will be searched in
@@ -465,19 +481,27 @@ def validate_python_path(ctx, param, value):
     return value
 
 
-def validate_bool_or_none(ctx, param, value):
+def validate_bool_or_none(
+    ctx: pipenv.vendor.click.core.Context,
+    param: pipenv.vendor.click.core.Option,
+    value: bool | None,
+) -> bool:
     if value is not None:
         return click_types.BOOL(value)
     return False
 
 
-def validate_pypi_mirror(ctx, param, value):
+def validate_pypi_mirror(
+    ctx: pipenv.vendor.click.core.Context,
+    param: pipenv.vendor.click.core.Option,
+    value: str,
+):
     if value and not is_valid_url(value):
         raise BadParameter(f"Invalid PyPI mirror URL: {value}")
     return value
 
 
-def skip_lock_option(f):
+def skip_lock_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         if value:
             err.print(
@@ -504,7 +528,7 @@ def skip_lock_option(f):
 
 
 # OLD REMOVED COMMANDS THAT WE STILL DISPLAY HELP TEXT FOR WHEN USED #
-def keep_outdated_option(f):
+def keep_outdated_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.keep_outdated = value
@@ -530,7 +554,7 @@ def keep_outdated_option(f):
     )(f)
 
 
-def selective_upgrade_option(f):
+def selective_upgrade_option(f: Callable) -> Callable:
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         state.installstate.selective_upgrade = value
@@ -555,7 +579,7 @@ def selective_upgrade_option(f):
     )(f)
 
 
-def common_options(f):
+def common_options(f: Callable) -> Callable:
     f = pypi_mirror_option(f)
     f = verbose_option(f)
     f = quiet_option(f)
@@ -564,7 +588,7 @@ def common_options(f):
     return f
 
 
-def install_base_options(f):
+def install_base_options(f: Callable) -> Callable:
     f = common_options(f)
     f = pre_option(f)
     f = extra_pip_args(f)
@@ -572,7 +596,7 @@ def install_base_options(f):
     return f
 
 
-def uninstall_options(f):
+def uninstall_options(f: Callable) -> Callable:
     f = install_base_options(f)
     f = categories_option(f)
     f = uninstall_dev_option(f)
@@ -582,7 +606,7 @@ def uninstall_options(f):
     return f
 
 
-def lock_options(f):
+def lock_options(f: Callable) -> Callable:
     f = install_base_options(f)
     f = lock_dev_option(f)
     f = dev_only_flag(f)
@@ -590,14 +614,14 @@ def lock_options(f):
     return f
 
 
-def sync_options(f):
+def sync_options(f: Callable) -> Callable:
     f = install_base_options(f)
     f = install_dev_option(f)
     f = categories_option(f)
     return f
 
 
-def install_options(f):
+def install_options(f: Callable) -> Callable:
     f = sync_options(f)
     f = index_option(f)
     f = requirementstxt_option(f)
@@ -609,12 +633,12 @@ def install_options(f):
     return f
 
 
-def upgrade_options(f):
+def upgrade_options(f: Callable) -> Callable:
     f = lock_only_option(f)
     return f
 
 
-def general_options(f):
+def general_options(f: Callable) -> Callable:
     f = common_options(f)
     f = site_packages_option(f)
     return f

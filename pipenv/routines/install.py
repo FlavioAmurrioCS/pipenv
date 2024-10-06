@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import os
 import queue
 import sys
 import warnings
 from collections import defaultdict
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Any
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
@@ -16,34 +19,35 @@ from pipenv.utils.dependencies import (
 )
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
-from pipenv.utils.pip import (
-    get_trusted_hosts,
-    pip_install_deps,
-)
+from pipenv.utils.pip import get_trusted_hosts, pip_install_deps
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
 
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.project import Project
+
 
 def do_install(
-    project,
-    packages=False,
-    editable_packages=False,
-    index=False,
-    dev=False,
-    python=False,
-    pypi_mirror=None,
-    system=False,
-    ignore_pipfile=False,
-    requirementstxt=False,
-    pre=False,
-    deploy=False,
-    site_packages=None,
-    extra_pip_args=None,
-    categories=None,
-    skip_lock=False,
+    project: Project,
+    packages: list[str | Any] = False,
+    editable_packages: list[Any] = False,
+    index: None = False,
+    dev: bool = False,
+    python: str = False,
+    pypi_mirror: None = None,
+    system: bool = False,
+    ignore_pipfile: bool = False,
+    requirementstxt: None = False,
+    pre: bool = False,
+    deploy: bool = False,
+    site_packages: None = None,
+    extra_pip_args: list[Any] | None = None,
+    categories: list[Any] | None = None,
+    skip_lock: bool = False,
 ):
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
@@ -236,17 +240,17 @@ def do_install(
 
 
 def do_install_validations(
-    project,
-    package_args,
-    requirements_directory,
-    dev=False,
-    system=False,
-    ignore_pipfile=False,
-    requirementstxt=False,
-    pre=False,
-    deploy=False,
-    categories=None,
-    skip_lock=False,
+    project: Project,
+    package_args: list[str | Any],
+    requirements_directory: str,
+    dev: bool = False,
+    system: bool = False,
+    ignore_pipfile: bool = False,
+    requirementstxt: None = False,
+    pre: bool = False,
+    deploy: bool = False,
+    categories: list[Any] | None = None,
+    skip_lock: bool = False,
 ):
     # Don't attempt to install develop and default packages if Pipfile is missing
     if not project.pipfile_exists and not (package_args or dev):
@@ -333,16 +337,16 @@ def do_install_validations(
 
 
 def do_install_dependencies(
-    project,
-    dev=False,
-    bare=False,
-    allow_global=False,
-    ignore_hashes=False,
-    requirements_dir=None,
-    pypi_mirror=None,
-    extra_pip_args=None,
-    categories=None,
-    skip_lock=False,
+    project: Project,
+    dev: bool = False,
+    bare: bool = False,
+    allow_global: bool = False,
+    ignore_hashes: bool = False,
+    requirements_dir: str | None = None,
+    pypi_mirror: None = None,
+    extra_pip_args: list[Any] | None = None,
+    categories: list[Any] | None = None,
+    skip_lock: bool = False,
 ):
     """
     Executes the installation functionality.
@@ -424,15 +428,15 @@ def do_install_dependencies(
 
 
 def batch_install_iteration(
-    project,
-    deps_to_install,
-    sources,
-    procs,
-    requirements_dir,
-    no_deps=True,
-    ignore_hashes=False,
-    allow_global=False,
-    extra_pip_args=None,
+    project: Project,
+    deps_to_install: list[str],
+    sources: list[dict[str, str | bool]],
+    procs: queue.Queue,
+    requirements_dir: str,
+    no_deps: bool = True,
+    ignore_hashes: bool = False,
+    allow_global: bool = False,
+    extra_pip_args: list[Any] | None = None,
 ):
     with temp_environ():
         if not allow_global:
@@ -459,17 +463,20 @@ def batch_install_iteration(
 
 
 def batch_install(
-    project,
-    deps_list,
-    lockfile_section,
-    procs,
-    requirements_dir,
-    no_deps=True,
-    ignore_hashes=False,
-    allow_global=False,
-    pypi_mirror=None,
-    sequential_deps=None,
-    extra_pip_args=None,
+    project: Project,
+    deps_list: list[tuple[InstallRequirement, str]],
+    lockfile_section: dict[
+        str,
+        dict[str, str | list[str]] | dict[str, list[str] | str | bool] | dict[str, str],
+    ],
+    procs: queue.Queue,
+    requirements_dir: str,
+    no_deps: bool = True,
+    ignore_hashes: bool = False,
+    allow_global: bool = False,
+    pypi_mirror: None = None,
+    sequential_deps: list[tuple[InstallRequirement, str] | Any] | None = None,
+    extra_pip_args: list[Any] | None = None,
 ):
     if sequential_deps is None:
         sequential_deps = []
@@ -534,7 +541,7 @@ def batch_install(
                 sys.exit(1)
 
 
-def _cleanup_procs(project, procs):
+def _cleanup_procs(project: Project, procs: queue.Queue):
     while not procs.empty():
         c = procs.get()
         try:
@@ -557,19 +564,19 @@ def _cleanup_procs(project, procs):
 
 
 def do_init(
-    project,
-    allow_global=False,
-    ignore_pipfile=False,
-    system=False,
-    deploy=False,
-    pre=False,
-    requirements_dir=None,
-    pypi_mirror=None,
-    extra_pip_args=None,
-    categories=None,
-    skip_lock=False,
-    packages=None,
-    editable_packages=None,
+    project: Project,
+    allow_global: bool = False,
+    ignore_pipfile: bool = False,
+    system: bool = False,
+    deploy: bool = False,
+    pre: bool = False,
+    requirements_dir: str | None = None,
+    pypi_mirror: None = None,
+    extra_pip_args: list[Any] | None = None,
+    categories: list[Any] | None = None,
+    skip_lock: bool = False,
+    packages: None = None,
+    editable_packages: None = None,
 ):
     from pipenv.routines.update import do_update
 

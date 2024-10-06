@@ -1,15 +1,26 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
 from os.path import expandvars
+from typing import TYPE_CHECKING
 
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+
 
 def do_shell(
-    project, python=False, fancy=False, shell_args=None, pypi_mirror=None, quiet=False
+    project: Project,
+    python: str = False,
+    fancy: bool = False,
+    shell_args: tuple[()] | None = None,
+    pypi_mirror: None = None,
+    quiet: bool = False,
 ):
     # Ensure that virtualenv is available.
     ensure_project(

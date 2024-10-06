@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 import os
 from collections.abc import ItemsView, Mapping, Sequence, Set
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, TypeVar, Union
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.target_python import TargetPython
-from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.operations.prepare import (
     File,
     _check_download_dir,
@@ -15,7 +15,6 @@ from pipenv.patched.pip._internal.operations.prepare import (
     unpack_vcs_link,
 )
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
-from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
@@ -23,10 +22,16 @@ from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.utils.fileutils import is_valid_url, normalize_path, url_to_path
 from pipenv.vendor import tomlkit
 
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.models.link import Link
+    from pipenv.patched.pip._internal.network.download import Downloader
+    from pipenv.patched.pip._internal.utils.hashes import Hashes
+    from pipenv.vendor.tomlkit.items import String
+
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
-PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
+PipfileEntryType = Union[STRING_TYPE, bool, tuple[STRING_TYPE], list[STRING_TYPE]]
+PipfileType = Union[STRING_TYPE, dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -74,7 +79,7 @@ def strip_ssh_from_git_uri(uri):
     return uri
 
 
-def add_ssh_scheme_to_git_uri(uri):
+def add_ssh_scheme_to_git_uri(uri: str) -> str:
     # type: (S) -> S
     """Cleans VCS uris from pip format."""
     if isinstance(uri, str):
@@ -89,7 +94,7 @@ def add_ssh_scheme_to_git_uri(uri):
     return uri
 
 
-def is_vcs(pipfile_entry):
+def is_vcs(pipfile_entry: dict[str, int | object] | dict[str, str] | str) -> bool:
     # type: (PipfileType) -> bool
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
@@ -206,7 +211,9 @@ def get_setup_paths(base_path, subdirectory=None):
     }
 
 
-def prepare_pip_source_args(sources, pip_args=None):
+def prepare_pip_source_args(
+    sources: list[dict[str, String | bool] | Any], pip_args: None = None
+) -> list[Any | str | String]:
     # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
     if pip_args is None:
         pip_args = []
@@ -304,7 +311,12 @@ class PathAccessError(KeyError, IndexError, TypeError):
     """An amalgamation of KeyError, IndexError, and TypeError, representing
     what can occur when looking up a path in a nested object."""
 
-    def __init__(self, exc, seg, path):
+    def __init__(
+        self,
+        exc: TypeError | KeyError,
+        seg: str | None,
+        path: tuple[str, str] | tuple[None] | tuple[str, str, int] | tuple[str],
+    ):
         self.exc = exc
         self.seg = seg
         self.path = path
@@ -317,7 +329,11 @@ class PathAccessError(KeyError, IndexError, TypeError):
         return f"could not access {self.seg} from path {self.path}, got error: {self.exc}"
 
 
-def get_path(root, path, default=_UNSET):
+def get_path(
+    root: None,
+    path: tuple[str, str] | tuple[None] | tuple[str, str, int] | tuple[str],
+    default: object = _UNSET,
+):
     """Retrieve a value from a nested object via a tuple representing the
     lookup path.
 
@@ -378,7 +394,14 @@ _orig_default_visit = default_visit
 
 
 # Modified from https://github.com/mahmoud/boltons/blob/master/boltons/iterutils.py
-def dict_path_enter(path, key, value):
+def dict_path_enter(
+    path: tuple[str, str] | tuple[str] | tuple[()], key: int | str | None, value: Any
+) -> (
+    tuple[dict[Any, Any], ItemsView]
+    | tuple[bool, bool]
+    | tuple[str, bool]
+    | tuple[list[Any], enumerate]
+):
     if isinstance(value, str):
         return value, False
     elif isinstance(value, (tomlkit.items.Table, tomlkit.items.InlineTable)):
@@ -397,7 +420,13 @@ def dict_path_enter(path, key, value):
         return value, False
 
 
-def dict_path_exit(path, key, old_parent, new_parent, new_items):
+def dict_path_exit(
+    path: tuple[str] | tuple[()],
+    key: str | None,
+    old_parent: Any,
+    new_parent: dict[Any, Any] | list[Any],
+    new_items: list[Any],
+) -> Any:
     ret = new_parent
     if isinstance(new_parent, (Mapping, dict)):
         vals = dict(new_items)
@@ -434,8 +463,17 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
 
 
 def remap(
-    root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs
-):
+    root: dict[
+        str,
+        dict[str, str | list[str]] | dict[str, list[str] | str | bool] | dict[str, str],
+    ],
+    visit: Callable = default_visit,
+    enter: Callable = dict_path_enter,
+    exit: Callable = dict_path_exit,
+    **kwargs,
+) -> dict[
+    str, dict[str, str | list[str]] | dict[str, list[str] | str | bool] | dict[str, str]
+]:
     """The remap ("recursive map") function is used to traverse and transform
     nested structures. Lists, tuples, sets, and dictionaries are just a few of
     the data structures nested into heterogeneous tree-like structures that are
@@ -587,7 +625,19 @@ def remap(
     return value
 
 
-def merge_items(target_list, sourced=False):
+def merge_items(
+    target_list: list[
+        dict[
+            str,
+            dict[str, str | list[str]]
+            | dict[str, list[str] | str | bool]
+            | dict[str, str],
+        ]
+    ],
+    sourced: bool = False,
+) -> dict[
+    str, dict[str, str | list[str]] | dict[str, list[str] | str | bool] | dict[str, str]
+]:
     if not sourced:
         target_list = [(id(t), t) for t in target_list]
 
@@ -643,9 +693,9 @@ def unpack_url(
     location: str,
     download: Downloader,
     verbosity: int,
-    download_dir: Optional[str] = None,
-    hashes: Optional[Hashes] = None,
-) -> Optional[File]:
+    download_dir: None = None,
+    hashes: None = None,
+) -> File:
     """Unpack link into location, downloading if required.
 
     :param hashes: A Hashes object, one of whose embedded hashes must match,
@@ -701,8 +751,8 @@ def unpack_url(
 def get_http_url(
     link: Link,
     download: Downloader,
-    download_dir: Optional[str] = None,
-    hashes: Optional[Hashes] = None,
+    download_dir: str | None = None,
+    hashes: Hashes | None = None,
 ) -> File:
     temp_dir = TempDirectory(kind="unpack", globally_managed=False)
     # If a download dir is specified, is the file already downloaded there?

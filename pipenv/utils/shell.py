@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import errno
 import os
 import posixpath
@@ -9,7 +11,8 @@ import sys
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PosixPath
+from typing import TYPE_CHECKING
 
 from pipenv.utils import err
 from pipenv.utils.fileutils import normalize_drive, normalize_path
@@ -18,6 +21,13 @@ from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from io import TextIOWrapper
+
+    from pipenv.project import Project
+    from pipenv.vendor.tomlkit.items import String
 
 
 @lru_cache
@@ -152,7 +162,7 @@ def find_requirements(max_depth=3):
 # Borrowed from Pew.
 # See https://github.com/berdario/pew/blob/master/pew/_utils.py#L82
 @contextmanager
-def temp_environ():
+def temp_environ() -> Iterator[None]:
     """Allow the ability to set os.environ temporarily"""
     environ = dict(os.environ)
     try:
@@ -169,19 +179,19 @@ def escape_cmd(cmd):
     return cmd
 
 
-def safe_expandvars(value):
+def safe_expandvars(value: String | bool) -> String | bool | str:
     """Call os.path.expandvars if value is a string, otherwise do nothing."""
     if isinstance(value, str):
         return os.path.expandvars(value)
     return value
 
 
-def cmd_list_to_shell(args):
+def cmd_list_to_shell(args: list[str]) -> str:
     """Convert a list of arguments to a quoted shell command."""
     return " ".join(shlex.quote(str(token)) for token in args)
 
 
-def get_workon_home():
+def get_workon_home() -> PosixPath:
     workon_home = os.environ.get("WORKON_HOME")
     if not workon_home:
         if os.name == "nt":
@@ -282,7 +292,7 @@ def find_python(finder, line=None):
     return
 
 
-def is_python_command(line):
+def is_python_command(line: str):
     """
     Given an input, checks whether the input is a request for python or notself.
 
@@ -374,7 +384,7 @@ def style_no_color(text, fg=None, bg=None, **kwargs) -> str:
     return click.style(text, **kwargs)
 
 
-def env_to_bool(val):
+def env_to_bool(val: str | bool) -> bool:
     """
     Convert **val** to boolean, returning True if truthy or False if falsey
 
@@ -398,12 +408,12 @@ def env_to_bool(val):
     raise ValueError(f"Value is not a valid boolean-like: {val}")
 
 
-def is_env_truthy(name):
+def is_env_truthy(name: str) -> bool:
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
     return env_to_bool(os.getenv(name, False))  # noqa: PLW1508
 
 
-def project_python(project, system=False):
+def project_python(project: Project | None, system: bool = False) -> str:
     if not system:
         python = project._which("python")
     else:
@@ -416,7 +426,7 @@ def project_python(project, system=False):
     return Path(python).as_posix()
 
 
-def system_which(command, path=None):
+def system_which(command: str, path: None = None) -> str:
     """Emulates the system's which. Returns None if not found."""
     import shutil
 
@@ -449,7 +459,7 @@ def shorten_path(location, bold=False):
     return os.sep.join(short)
 
 
-def isatty(stream):
+def isatty(stream: TextIOWrapper) -> bool:
     try:
         is_a_tty = stream.isatty()
     except Exception:  # pragma: no cover

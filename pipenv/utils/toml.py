@@ -1,9 +1,10 @@
-from typing import Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Union
 
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container, OutOfOrderTableProxy
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
-from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 try:
     import tomllib as toml
@@ -12,12 +13,16 @@ except ImportError:
 
 from pipenv.vendor import tomlkit
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+    from pipenv.vendor.tomlkit.toml_document import TOMLDocument
+
 TOML_DICT_TYPES = Union[Container, Package, PackageCollection, Table, InlineTable]
 TOML_DICT_OBJECTS = (Container, Package, Table, InlineTable, PackageCollection)
 TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 
-def cleanup_toml(tml):
+def cleanup_toml(tml: str) -> str:
     # Remove all empty lines from TOML.
     toml = "\n".join(line for line in tml.split("\n") if line.strip())
     new_toml = []
@@ -34,7 +39,7 @@ def cleanup_toml(tml):
     return toml
 
 
-def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
+def convert_toml_outline_tables(parsed: TOMLDocument, project: Project) -> TOMLDocument:
     """Converts all outline tables to inline tables."""
 
     def convert_tomlkit_table(section):

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import sys
 from collections import namedtuple
@@ -118,7 +120,7 @@ class JSONParseError(PipenvException):
 
 
 class PipenvUsageError(UsageError):
-    def __init__(self, message=None, ctx=None, **kwargs):
+    def __init__(self, message: str | None = None, ctx: None = None, **kwargs):
         formatted_message = "{0}: {1}"
         msg_prefix = "[bold red]ERROR:[/bold red]"
         if not message:
