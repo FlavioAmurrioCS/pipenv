@@ -9,14 +9,15 @@ import stat
 import subprocess
 import time
 import warnings
+from collections.abc import Iterable, Iterator
 from functools import partial
 from itertools import count, islice
-from typing import Any, Iterable
+from typing import Any, Optional, Union
 
 DIRECTORY_CLEANUP_TIMEOUT = 1.0
 
 
-def _is_iterable(elem: Any) -> bool:
+def _is_iterable(elem: Optional[Union[int, list[str], str, tuple[str, str]]]) -> bool:
     if getattr(elem, "__iter__", False) or isinstance(elem, Iterable):
         return True
     return False
@@ -41,7 +42,7 @@ def chunked(n: int, iterable: Iterable) -> Iterable:
     return iter(partial(take, n, iter(iterable)), [])
 
 
-def unnest(elem: Iterable) -> Any:
+def unnest(elem: Any) -> Iterator[Optional[int]]:
     """Flatten an arbitrarily nested iterable.
 
     :param elem: An iterable to flatten

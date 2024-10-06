@@ -3,6 +3,7 @@ import os
 import pathlib
 import re
 import sys
+from typing import Optional, Union
 
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.utils.fileutils import normalize_drive
@@ -14,7 +15,12 @@ from pipenv.utils.shell import env_to_bool, is_env_truthy, isatty
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
 
-def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
+def get_from_env(
+    arg: str,
+    prefix: Optional[str] = "PIPENV",
+    check_for_negation: bool = True,
+    default: Optional[Union[int, str, bool]] = None,
+) -> Optional[Union[int, str, bool]]:
     """
     Check the environment for a variable, returning its truthy or stringified value
 
@@ -50,7 +56,7 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
     return default
 
 
-def normalize_pipfile_path(p):
+def normalize_pipfile_path(p: str) -> str:
     if p is None:
         return None
     loc = pathlib.Path(p)
@@ -407,7 +413,7 @@ class Setting:
         del self.PIPENV_QUIET
         del self.PIPENV_VERBOSE
 
-    def is_verbose(self, threshold=1):
+    def is_verbose(self, threshold: int = 1) -> bool:
         return threshold <= self.PIPENV_VERBOSITY
 
     def is_quiet(self, threshold=-1):
@@ -425,7 +431,7 @@ def is_using_venv() -> bool:
     return result
 
 
-def is_in_virtualenv():
+def is_in_virtualenv() -> bool:
     """
     Check virtualenv membership dynamically
 

@@ -1,7 +1,7 @@
 import os
 from collections.abc import ItemsView, Mapping, Sequence, Set
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Any, Callable, Optional, TypeVar, Union
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -25,8 +25,8 @@ from pipenv.vendor import tomlkit
 
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
-PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
+PipfileEntryType = Union[STRING_TYPE, bool, tuple[STRING_TYPE], list[STRING_TYPE]]
+PipfileType = Union[STRING_TYPE, dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -61,7 +61,6 @@ VCS_SCHEMES = [
 
 
 def strip_ssh_from_git_uri(uri):
-    # type: (S) -> S
     """Return git+ssh:// formatted URI to git+git@ format."""
     if isinstance(uri, str) and "git+ssh://" in uri:
         parsed = urlparse(uri)
@@ -74,8 +73,7 @@ def strip_ssh_from_git_uri(uri):
     return uri
 
 
-def add_ssh_scheme_to_git_uri(uri):
-    # type: (S) -> S
+def add_ssh_scheme_to_git_uri(uri: str) -> str:
     """Cleans VCS uris from pip format."""
     if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
@@ -89,8 +87,9 @@ def add_ssh_scheme_to_git_uri(uri):
     return uri
 
 
-def is_vcs(pipfile_entry):
-    # type: (PipfileType) -> bool
+def is_vcs(
+    pipfile_entry: Union[dict[str, Union[int, object]], dict[str, str], str]
+) -> bool:
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry if key in VCS_LIST)
@@ -206,8 +205,7 @@ def get_setup_paths(base_path, subdirectory=None):
     }
 
 
-def prepare_pip_source_args(sources, pip_args=None):
-    # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
+def prepare_pip_source_args(sources: list[Any], pip_args: None = None) -> list[Any]:
     if pip_args is None:
         pip_args = []
     if sources:
@@ -304,7 +302,12 @@ class PathAccessError(KeyError, IndexError, TypeError):
     """An amalgamation of KeyError, IndexError, and TypeError, representing
     what can occur when looking up a path in a nested object."""
 
-    def __init__(self, exc, seg, path):
+    def __init__(
+        self,
+        exc: Union[TypeError, KeyError],
+        seg: Optional[str],
+        path: Union[tuple[None], tuple[str, str], tuple[str], tuple[str, str, int]],
+    ) -> None:
         self.exc = exc
         self.seg = seg
         self.path = path
@@ -317,7 +320,11 @@ class PathAccessError(KeyError, IndexError, TypeError):
         return f"could not access {self.seg} from path {self.path}, got error: {self.exc}"
 
 
-def get_path(root, path, default=_UNSET):
+def get_path(
+    root: None,
+    path: Union[tuple[None], tuple[str, str], tuple[str], tuple[str, str, int]],
+    default: object = _UNSET,
+):
     """Retrieve a value from a nested object via a tuple representing the
     lookup path.
 
@@ -378,7 +385,19 @@ _orig_default_visit = default_visit
 
 
 # Modified from https://github.com/mahmoud/boltons/blob/master/boltons/iterutils.py
-def dict_path_enter(path, key, value):
+def dict_path_enter(
+    path: Union[tuple[str, str], tuple[str], tuple[()]],
+    key: Optional[Union[int, str]],
+    value: Union[
+        dict[str, Union[dict[str, Union[str, list[str]]], dict[str, str]]],
+        str,
+        dict[str, Union[str, list[str]]],
+        dict[str, str],
+        list[str],
+    ],
+) -> Union[
+    tuple[dict[Any, Any], ItemsView], tuple[list[Any], enumerate], tuple[str, bool]
+]:
     if isinstance(value, str):
         return value, False
     elif isinstance(value, (tomlkit.items.Table, tomlkit.items.InlineTable)):
@@ -397,7 +416,23 @@ def dict_path_enter(path, key, value):
         return value, False
 
 
-def dict_path_exit(path, key, old_parent, new_parent, new_items):
+def dict_path_exit(
+    path: Union[tuple[str], tuple[()]],
+    key: Optional[str],
+    old_parent: Union[
+        dict[str, Union[dict[str, Union[str, list[str]]], dict[str, str]]],
+        dict[str, Union[str, list[str]]],
+        dict[str, str],
+        list[str],
+    ],
+    new_parent: Union[dict[Any, Any], list[Any]],
+    new_items: list[Any],
+) -> Union[
+    dict[str, Union[dict[str, Union[str, list[str]]], dict[str, str]]],
+    dict[str, Union[str, list[str]]],
+    dict[str, str],
+    list[str],
+]:
     ret = new_parent
     if isinstance(new_parent, (Mapping, dict)):
         vals = dict(new_items)
@@ -434,8 +469,12 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
 
 
 def remap(
-    root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs
-):
+    root: dict[str, dict[str, Union[str, list[str]]]],
+    visit: Callable = default_visit,
+    enter: Callable = dict_path_enter,
+    exit: Callable = dict_path_exit,
+    **kwargs,
+) -> dict[str, dict[str, Union[str, list[str]]]]:
     """The remap ("recursive map") function is used to traverse and transform
     nested structures. Lists, tuples, sets, and dictionaries are just a few of
     the data structures nested into heterogeneous tree-like structures that are
@@ -587,7 +626,9 @@ def remap(
     return value
 
 
-def merge_items(target_list, sourced=False):
+def merge_items(
+    target_list: list[dict[str, dict[str, Union[str, list[str]]]]], sourced: bool = False
+) -> dict[str, dict[str, Union[str, list[str]]]]:
     if not sourced:
         target_list = [(id(t), t) for t in target_list]
 
@@ -643,9 +684,9 @@ def unpack_url(
     location: str,
     download: Downloader,
     verbosity: int,
-    download_dir: Optional[str] = None,
-    hashes: Optional[Hashes] = None,
-) -> Optional[File]:
+    download_dir: None = None,
+    hashes: None = None,
+) -> File:
     """Unpack link into location, downloading if required.
 
     :param hashes: A Hashes object, one of whose embedded hashes must match,

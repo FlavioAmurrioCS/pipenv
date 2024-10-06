@@ -6,11 +6,13 @@ import sys
 import tarfile
 import tempfile
 import zipfile
+from collections.abc import Mapping, Sequence
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache
+from io import BufferedReader
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
+from typing import Any, Optional, Union
 from urllib.parse import urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.patched.pip._internal.models.link import Link
@@ -28,6 +30,7 @@ from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.project import Project
 from pipenv.utils import err
 from pipenv.utils.fileutils import (
     create_tracked_tempdir,
@@ -38,6 +41,7 @@ from pipenv.utils.requirementslib import (
     prepare_pip_source_args,
     unpack_url,
 )
+from pipenv.vendor.tomlkit.items import String
 
 from .constants import (
     INSTALLABLE_EXTENSIONS,
@@ -67,7 +71,7 @@ def get_version(pipfile_entry):
     return ""
 
 
-def python_version(path_to_python):
+def python_version(path_to_python: str) -> Optional[str]:
     from pipenv.vendor.pythonfinder.utils import get_python_version
 
     if not path_to_python:
@@ -84,7 +88,7 @@ def clean_pkg_version(version):
     return pep440_version(str(version).replace("==", ""))
 
 
-def get_lockfile_section_using_pipfile_category(category):
+def get_lockfile_section_using_pipfile_category(category: str) -> str:
     if category == "dev-packages":
         lockfile_section = "develop"
     elif category == "packages":
@@ -94,7 +98,7 @@ def get_lockfile_section_using_pipfile_category(category):
     return lockfile_section
 
 
-def get_pipfile_category_using_lockfile_section(category):
+def get_pipfile_category_using_lockfile_section(category: str) -> str:
     if category == "develop":
         lockfile_section = "dev-packages"
     elif category == "default":
@@ -134,7 +138,7 @@ def pep440_version(version):
     return str(parse(version))
 
 
-def pep423_name(name):
+def pep423_name(name: str) -> str:
     """Normalize package name to PEP 423 style standard."""
     name = name.lower()
     if any(i not in name for i in (VCS_LIST + SCHEME_LIST)):
@@ -144,7 +148,9 @@ def pep423_name(name):
         return name
 
 
-def translate_markers(pipfile_entry):
+def translate_markers(
+    pipfile_entry: dict[str, Union[str, list[str], String]]
+) -> dict[str, Union[str, list[str], String]]:
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -175,7 +181,9 @@ def translate_markers(pipfile_entry):
     return new_pipfile
 
 
-def unearth_hashes_for_dep(project, dep):
+def unearth_hashes_for_dep(
+    project: Project, dep: dict[str, Union[str, String]]
+) -> list[Any]:
     hashes = []
 
     index_url = "https://pypi.org/simple/"
@@ -199,7 +207,7 @@ def unearth_hashes_for_dep(project, dep):
     return []
 
 
-def extract_vcs_url(vcs_url):
+def extract_vcs_url(vcs_url: str) -> str:
     # Remove leading/trailing whitespace
     vcs_url = vcs_url.strip()
 
@@ -238,7 +246,17 @@ def extract_vcs_url(vcs_url):
     return clean_url
 
 
-def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
+def clean_resolved_dep(
+    project: Project,
+    dep: dict[str, Union[str, list[str], String]],
+    is_top_level: bool = False,
+    current_entry: Optional[dict[str, String]] = None,
+) -> dict[
+    str,
+    Union[
+        dict[str, str], dict[str, Union[str, String]], dict[str, Union[str, list[str]]]
+    ],
+]:
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
@@ -341,7 +359,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     return {name: lockfile}
 
 
-def as_pipfile(dep: InstallRequirement) -> Dict[str, Any]:
+def as_pipfile(dep: InstallRequirement) -> dict[str, Any]:
     """Create a pipfile entry for the given InstallRequirement."""
     pipfile_dict = {}
     name = dep.name
@@ -377,7 +395,7 @@ def as_pipfile(dep: InstallRequirement) -> Dict[str, Any]:
     return pipfile_dict
 
 
-def is_star(val):
+def is_star(val: Union[str, String]) -> bool:
     return isinstance(val, str) and val == "*"
 
 
@@ -401,7 +419,7 @@ def is_pinned_requirement(ireq):
     return spec.operator in {"==", "==="} and not spec.version.endswith(".*")
 
 
-def is_editable_path(path):
+def is_editable_path(path: Union[String, str]) -> bool:
     if os.path.isdir(path):
         return True
     return False
@@ -409,13 +427,13 @@ def is_editable_path(path):
 
 def dependency_as_pip_install_line(
     dep_name: str,
-    dep: Union[str, Mapping],
+    dep: Any,
     include_hashes: bool,
     include_markers: bool,
     include_index: bool,
-    indexes: list,
+    indexes: list[Union[Any, dict[str, Union[String, bool]]]],
     constraint: bool = False,
-):
+) -> str:
     if isinstance(dep, str):
         if is_star(dep):
             return dep_name
@@ -498,12 +516,12 @@ def dependency_as_pip_install_line(
 
 
 def convert_deps_to_pip(
-    deps,
-    indexes=None,
-    include_hashes=True,
-    include_markers=True,
-    include_index=False,
-):
+    deps: Any,
+    indexes: Optional[list[dict[str, Union[String, bool]]]] = None,
+    include_hashes: bool = True,
+    include_markers: bool = True,
+    include_index: bool = False,
+) -> dict[str, str]:
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
     dependencies = {}
     if indexes is None:
@@ -551,7 +569,7 @@ def parse_pkginfo_file(content: str):
     return None
 
 
-def parse_setup_file(content):
+def parse_setup_file(content: str) -> str:
     # A dictionary to store variable names and their values
     variables = {}
     try:
@@ -618,7 +636,7 @@ def parse_setup_file(content):
     return None
 
 
-def parse_cfg_file(content):
+def parse_cfg_file(content: str) -> None:
     config = configparser.ConfigParser()
     config.read_string(content)
     try:
@@ -663,7 +681,7 @@ def find_package_name_from_zipfile(zip_filepath):
                         return possible_name
 
 
-def find_package_name_from_directory(directory):
+def find_package_name_from_directory(directory: str) -> str:
     parsed_url = urlparse(directory)
     directory = (
         os.path.normpath(parsed_url.path)
@@ -729,7 +747,7 @@ def ensure_path_is_relative(file_path):
         return str(relative_path)
 
 
-def determine_path_specifier(package: InstallRequirement):
+def determine_path_specifier(package: InstallRequirement) -> None:
     if package.link:
         if package.link.scheme in ["http", "https"]:
             return package.link.url_without_fragment
@@ -737,7 +755,7 @@ def determine_path_specifier(package: InstallRequirement):
             return ensure_path_is_relative(package.link.file_path)
 
 
-def determine_vcs_specifier(package: InstallRequirement):
+def determine_vcs_specifier(package: InstallRequirement) -> Optional[str]:
     if package.link and package.link.scheme in VCS_SCHEMES:
         vcs_specifier = package.link.url_without_fragment
         return vcs_specifier
@@ -771,8 +789,8 @@ def determine_vcs_revision_hash(
         return revision
 
 
-@lru_cache(maxsize=None)
-def determine_package_name(package: InstallRequirement):
+@cache
+def determine_package_name(package: InstallRequirement) -> str:
     req_name = None
     if package.name:
         req_name = package.name
@@ -834,7 +852,7 @@ def determine_package_name(package: InstallRequirement):
         raise ValueError(f"Could not determine package name from {package}")
 
 
-def find_package_name_from_filename(filename, file):
+def find_package_name_from_filename(filename: str, file: BufferedReader) -> Optional[str]:
     if filename.endswith("METADATA"):
         content = file.read().decode()
         possible_name = parse_metadata_file(content)
@@ -867,16 +885,14 @@ def find_package_name_from_filename(filename, file):
     return None
 
 
-def create_link(link):
-    # type: (AnyStr) -> Link
-
+def create_link(link: str) -> Link:
     if not isinstance(link, str):
         raise TypeError("must provide a string to instantiate a new link")
 
     return Link(link)
 
 
-def get_link_from_line(line):
+def get_link_from_line(line: str) -> Link:
     """Parse link information from given requirement line. Return a
     6-tuple:
 
@@ -911,7 +927,7 @@ def get_link_from_line(line):
     # We can assume a lot of things if this is a local filesystem path.
     if "://" not in fixed_line:
         p = Path(fixed_line).absolute()  # type: Path
-        p.as_posix()  # type: Optional[str]
+        p.as_posix()
         uri = p.as_uri()  # type: str
         link = create_link(uri)  # type: Link
         return link
@@ -941,7 +957,7 @@ def has_name_with_extras(requirement):
     return match is not None
 
 
-def expand_env_variables(line) -> AnyStr:
+def expand_env_variables(line: str) -> str:
     """Expand the env vars in a line following pip's standard.
     https://pip.pypa.io/en/stable/reference/pip_install/#id10.
 
@@ -959,18 +975,18 @@ def expand_env_variables(line) -> AnyStr:
 
 def expansive_install_req_from_line(
     pip_line: str,
-    comes_from: Optional[Union[str, InstallRequirement]] = None,
+    comes_from: None = None,
     *,
     use_pep517: Optional[bool] = None,
     isolated: bool = False,
-    global_options: Optional[List[str]] = None,
-    hash_options: Optional[Dict[str, List[str]]] = None,
+    global_options: Optional[list[str]] = None,
+    hash_options: Optional[dict[str, list[str]]] = None,
     constraint: bool = False,
     line_source: Optional[str] = None,
     user_supplied: bool = False,
-    config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
+    config_settings: Optional[dict[str, Union[str, list[str]]]] = None,
     expand_env: bool = False,
-) -> (InstallRequirement, str):
+) -> Union[tuple[InstallRequirement, None], tuple[InstallRequirement, str]]:
     """Create an InstallRequirement from a pip-style requirement line.
     InstallRequirement is a pip internal construct that represents an installable requirement,
     and is used as an intermediary between the pip command and the resolver.
@@ -1069,7 +1085,9 @@ def file_path_from_pipfile(path_str, pipfile_entry):
     return req_str
 
 
-def normalize_vcs_url(vcs_url):
+def normalize_vcs_url(
+    vcs_url: Union[String, str]
+) -> Union[tuple[String, str], tuple[str, str]]:
     """Return vcs_url and possible vcs_ref from a given vcs_url."""
     # We have to handle the fact that some vcs urls have a ref in them
     # and some have a netloc with a username and password in them, and some have both
@@ -1083,7 +1101,9 @@ def normalize_vcs_url(vcs_url):
     return vcs_url, vcs_ref
 
 
-def install_req_from_pipfile(name, pipfile):
+def install_req_from_pipfile(
+    name: str, pipfile: dict[str, Union[str, String]]
+) -> tuple[InstallRequirement, Marker, str]:
     """Creates an InstallRequirement from a name and a pipfile entry.
     Handles VCS, local & remote paths, and regular named requirements.
     "file" and "path" entries are treated the same.
@@ -1166,7 +1186,12 @@ def from_pipfile(name, pipfile):
     return cls_inst
 
 
-def get_constraints_from_deps(deps):
+def get_constraints_from_deps(
+    deps: dict[
+        str,
+        Union[dict[str, str], dict[str, list[Any]], dict[Any, Any], dict[str, list[str]]],
+    ]
+) -> set[str]:
     """Get constraints from dictionary-formatted dependency"""
     constraints = set()
     for dep_name, dep_version in deps.items():
@@ -1230,7 +1255,10 @@ def prepare_constraint_file(
     return constraints_file.name
 
 
-def is_required_version(version, specified_version):
+def is_required_version(
+    version: str,
+    specified_version: Union[dict[str, Union[str, list[str]]], dict[str, str], str],
+) -> bool:
     """Check to see if there's a hard requirement for version
     number provided in the Pipfile.
     """

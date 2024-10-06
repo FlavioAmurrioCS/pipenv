@@ -4,12 +4,19 @@ import sys
 from pathlib import Path
 
 from pipenv import exceptions
+from pipenv.project import Project
 from pipenv.utils.processes import run_command
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.vendor import click
 
 
-def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
+def do_graph(
+    project: Project,
+    bare: bool = False,
+    json: bool = False,
+    json_tree: bool = False,
+    reverse: bool = False,
+):
     import json as jsonlib
 
     from pipenv.vendor import pipdeptree

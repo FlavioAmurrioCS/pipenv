@@ -2,6 +2,7 @@ import itertools
 import sys
 from collections import namedtuple
 from traceback import format_tb
+from typing import Optional
 
 from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.text import Text
@@ -118,7 +119,7 @@ class JSONParseError(PipenvException):
 
 
 class PipenvUsageError(UsageError):
-    def __init__(self, message=None, ctx=None, **kwargs):
+    def __init__(self, message: Optional[str] = None, ctx: None = None, **kwargs) -> None:
         formatted_message = "{0}: {1}"
         msg_prefix = "[bold red]ERROR:[/bold red]"
         if not message:

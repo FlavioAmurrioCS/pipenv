@@ -70,7 +70,7 @@ def normalize_path(path: str) -> str:
     )
 
 
-def normalize_drive(path):
+def normalize_drive(path: str) -> str:
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be

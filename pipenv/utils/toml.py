@@ -1,5 +1,6 @@
 from typing import Union
 
+from pipenv.project import Project
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container, OutOfOrderTableProxy
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
@@ -17,7 +18,7 @@ TOML_DICT_OBJECTS = (Container, Package, Table, InlineTable, PackageCollection)
 TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 
-def cleanup_toml(tml):
+def cleanup_toml(tml: str) -> str:
     # Remove all empty lines from TOML.
     toml = "\n".join(line for line in tml.split("\n") if line.strip())
     new_toml = []
@@ -34,7 +35,7 @@ def cleanup_toml(tml):
     return toml
 
 
-def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
+def convert_toml_outline_tables(parsed: TOMLDocument, project: Project) -> TOMLDocument:
     """Converts all outline tables to inline tables."""
 
     def convert_tomlkit_table(section):

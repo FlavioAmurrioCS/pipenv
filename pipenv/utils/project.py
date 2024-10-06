@@ -1,11 +1,12 @@
 import os
 import sys
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.typing_extensions import TYPE_CHECKING
+from pipenv.project import Project
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
@@ -22,18 +23,18 @@ else:
 
 
 def ensure_project(
-    project,
-    python=None,
-    validate=True,
-    system=False,
-    warn=True,
-    site_packages=None,
-    deploy=False,
-    skip_requirements=False,
-    pypi_mirror=None,
-    clear=False,
-    categories=None,
-):
+    project: Project,
+    python: Optional[str] = None,
+    validate: bool = True,
+    system: bool = False,
+    warn: bool = True,
+    site_packages: None = None,
+    deploy: bool = False,
+    skip_requirements: bool = False,
+    pypi_mirror: None = None,
+    clear: bool = False,
+    categories: Optional[list[Any]] = None,
+) -> None:
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     # Automatically use an activated virtualenv.

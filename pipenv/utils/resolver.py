@@ -7,7 +7,7 @@ import tempfile
 import warnings
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Callable, Optional, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -25,10 +25,12 @@ from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.rich.status import Status
 from pipenv.project import Project
 from pipenv.utils import console, err
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
+from pipenv.vendor.tomlkit.items import String, Table
 
 from .dependencies import (
     HackedPythonVersion,
@@ -167,11 +169,11 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps: Dict[str, str],
+        deps: dict[str, str],
         project: Project,
-        index_lookup: Dict[str, str] = None,
-        markers_lookup: Dict[str, str] = None,
-        sources: List[str] = None,
+        index_lookup: dict[str, str] = None,
+        markers_lookup: dict[str, str] = None,
+        sources: list[str] = None,
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
@@ -699,7 +701,7 @@ def actually_resolve_deps(
     return (results, hashes, resolver)
 
 
-def resolve(cmd, st, project):
+def resolve(cmd: list[str], st: Status, project: Project) -> subprocess.CompletedProcess:
     from pipenv.cmdparse import Script
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
@@ -727,19 +729,34 @@ def resolve(cmd, st, project):
 
 
 def venv_resolve_deps(
-    deps,
-    which,
-    project,
-    category,
-    pre=False,
-    clear=False,
-    allow_global=False,
-    pypi_mirror=None,
-    pipfile=None,
-    lockfile=None,
-    old_lock_data=None,
-    extra_pip_args=None,
-):
+    deps: Table,
+    which: Callable,
+    project: Project,
+    category: str,
+    pre: None = False,
+    clear: bool = False,
+    allow_global: bool = False,
+    pypi_mirror: None = None,
+    pipfile: Optional[Table] = None,
+    lockfile: Optional[
+        dict[
+            str,
+            Union[
+                dict[
+                    str, Union[dict[str, str], int, list[dict[str, Union[String, bool]]]]
+                ],
+                dict[
+                    str,
+                    Union[
+                        dict[str, Union[str, list[str]]], dict[str, Union[str, String]]
+                    ],
+                ],
+            ],
+        ]
+    ] = None,
+    old_lock_data: Optional[dict[str, dict[str, String]]] = None,
+    extra_pip_args: None = None,
+) -> dict[str, dict[str, Union[str, list[str], String]]]:
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
 
@@ -960,7 +977,7 @@ def resolve_deps(
 
 
 @lru_cache
-def get_pipenv_sitedir() -> Optional[str]:
+def get_pipenv_sitedir() -> str:
     for dist in importlib_metadata.distributions():
         if dist.metadata["Name"].lower() == "pipenv":
             return str(dist.locate_file(""))

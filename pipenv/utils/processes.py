@@ -1,5 +1,7 @@
 import os
 import subprocess
+from pathlib import PosixPath
+from typing import Union
 
 from pipenv.exceptions import PipenvCmdError
 from pipenv.utils.constants import MYPY_RUNNING
@@ -9,7 +11,9 @@ if MYPY_RUNNING:
     from typing import Tuple  # noqa
 
 
-def run_command(cmd, *args, is_verbose=False, **kwargs):
+def run_command(
+    cmd: list[str], *args, is_verbose=False, **kwargs
+) -> subprocess.CompletedProcess:
     """
     Take an input command and run it, handling exceptions and error codes and returning
     its stdout and stderr.
@@ -46,7 +50,7 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
 
 
 def subprocess_run(
-    args,
+    args: Union[str, list[str], list[Union[str, PosixPath]]],
     *,
     block=True,
     text=True,
@@ -54,7 +58,7 @@ def subprocess_run(
     encoding="utf-8",
     env=None,
     **other_kwargs,
-):
+) -> Union[subprocess.CompletedProcess, subprocess.Popen]:
     """A backward compatible version of subprocess.run().
 
     It outputs text with default encoding, and store all outputs in the returned object instead of

@@ -1,9 +1,11 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from subprocess import Popen
+from typing import Any, Optional, Union
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.project import Project
 from pipenv.utils import err
 from pipenv.utils.fileutils import create_tracked_tempdir, normalize_path
 from pipenv.utils.indexes import prepare_pip_source_args
@@ -12,16 +14,16 @@ from pipenv.utils.shell import cmd_list_to_shell, project_python
 
 
 def pip_install_deps(
-    project,
-    deps,
-    sources,
-    allow_global=False,
-    ignore_hashes=False,
-    no_deps=False,
-    requirements_dir=None,
-    use_pep517=True,
-    extra_pip_args: Optional[List] = None,
-):
+    project: Project,
+    deps: list[str],
+    sources: list[dict[str, Union[str, bool]]],
+    allow_global: bool = False,
+    ignore_hashes: bool = False,
+    no_deps: bool = False,
+    requirements_dir: Optional[str] = None,
+    use_pep517: bool = True,
+    extra_pip_args: Optional[list[Any]] = None,
+) -> list[Popen]:
     if not allow_global:
         src_dir = os.getenv(
             "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
@@ -114,7 +116,7 @@ def pip_install_deps(
 
 
 def get_pip_args(
-    project,
+    project: Project,
     pre: bool = False,
     verbose: bool = False,
     upgrade: bool = False,
@@ -122,9 +124,9 @@ def get_pip_args(
     no_build_isolation: bool = False,
     no_use_pep517: bool = False,
     no_deps: bool = False,
-    src_dir: Optional[str] = None,
-    extra_pip_args: Optional[List] = None,
-) -> List[str]:
+    src_dir: None = None,
+    extra_pip_args: Optional[list[Any]] = None,
+) -> list[str]:
     arg_map = {
         "pre": ["--pre"],
         "verbose": ["--verbose"],
@@ -143,7 +145,7 @@ def get_pip_args(
     return list(dict.fromkeys(arg_set))
 
 
-def get_trusted_hosts():
+def get_trusted_hosts() -> list[Any]:
     try:
         return os.environ.get("PIP_TRUSTED_HOSTS", []).split(" ")
     except AttributeError:

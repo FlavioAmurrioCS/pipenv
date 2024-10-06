@@ -10,13 +10,18 @@ import re
 import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
-from pathlib import Path
+from pathlib import Path, PosixPath
+from typing import TYPE_CHECKING, Any, Union
 from urllib import parse
 from urllib.parse import unquote, urljoin
 
+from pipenv.cmdparse import Script
+from pipenv.environment import Environment
+from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import extract_vcs_url
-from pipenv.vendor.tomlkit.items import SingleKey, Table
+from pipenv.utils.locking import Lockfile
+from pipenv.vendor.tomlkit.items import SingleKey, String, Table
 
 try:
     import tomllib as toml
@@ -25,14 +30,11 @@ except ImportError:
 
 import contextlib
 
-from pipenv.cmdparse import Script
-from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv, normalize_pipfile_path
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
 from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
@@ -71,6 +73,12 @@ from pipenv.utils.shell import (
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.vendor import plette, tomlkit
 
+if TYPE_CHECKING:
+    import importlib.metadata as importlib_metadata
+    from io import TextIOWrapper
+
+    from pipenv.vendor.tomlkit.toml_document import TOMLDocument
+
 try:
     # this is only in Python3.8 and later
     from functools import cached_property
@@ -81,17 +89,17 @@ except ImportError:
 if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
 else:
-    import importlib.metadata as importlib_metadata
+    pass
 
 if is_type_checking():
-    from typing import Dict, List, Union
+    from typing import Union
 
-    TSource = Dict[str, Union[str, bool]]
-    TPackageEntry = Dict[str, Union[bool, str, List[str]]]
-    TPackage = Dict[str, TPackageEntry]
-    TScripts = Dict[str, str]
-    TPipenv = Dict[str, bool]
-    TPipfile = Dict[str, Union[TPackage, TScripts, TPipenv, List[TSource]]]
+    TSource = dict[str, Union[str, bool]]
+    TPackageEntry = dict[str, Union[bool, str, list[str]]]
+    TPackage = dict[str, TPackageEntry]
+    TScripts = dict[str, str]
+    TPipenv = dict[str, bool]
+    TPipfile = dict[str, Union[TPackage, TScripts, TPipenv, list[TSource]]]
 
 
 DEFAULT_NEWLINES = "\n"
@@ -113,7 +121,7 @@ class _LockFileEncoder(json.JSONEncoder):
     * The output is always UTF-8-encoded text, never binary, even on Python 2.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(indent=4, separators=(",", ": "), sort_keys=True)
 
     def default(self, obj):
@@ -121,14 +129,14 @@ class _LockFileEncoder(json.JSONEncoder):
             obj = obj.as_posix()
         return super().default(obj)
 
-    def encode(self, obj):
+    def encode(self, obj: dict[str, Any]) -> str:
         content = super().encode(obj)
         if not isinstance(content, str):
             content = content.decode("utf-8")
         return content
 
 
-def preferred_newlines(f):
+def preferred_newlines(f: TextIOWrapper) -> str:
     if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
@@ -148,7 +156,7 @@ class Project:
 
     _lockfile_encoder = _LockFileEncoder()
 
-    def __init__(self, python_version=None, chdir=True):
+    def __init__(self, python_version: None = None, chdir: bool = True) -> None:
         self._name = None
         self._virtualenv_location = None
         self._download_location = None
@@ -229,7 +237,7 @@ class Project:
         """Returns the details from the section of the Project's Pipfile."""
         return self.parsed_pipfile.get(section, {})
 
-    def get_package_categories(self, for_lockfile=False):
+    def get_package_categories(self, for_lockfile: bool = False) -> list[str]:
         """Ensure we get only package categories and that the default packages section is first."""
         categories = set(self.parsed_pipfile.keys())
         package_categories = (
@@ -389,7 +397,7 @@ class Project:
         return os.path.isfile(self.pipfile_location)
 
     @property
-    def required_python_version(self) -> str:
+    def required_python_version(self) -> None:
         if self.pipfile_exists:
             required = self.parsed_pipfile.get("requires", {}).get("python_full_version")
             if not required:
@@ -517,7 +525,7 @@ class Project:
         return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
-    def _sanitize(cls, name: str) -> tuple[str, str]:
+    def _sanitize(cls, name: str) -> str:
         # Replace dangerous characters into '_'. The length of the sanitized
         # project name is limited as 42 because of the limit of linux kernel
         #
@@ -532,7 +540,7 @@ class Project:
         #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
         return re.sub(r'[ &$`!*@"()\[\]\\\r\n\t]', "_", name)[0:42]
 
-    def _get_virtualenv_hash(self, name: str) -> str:
+    def _get_virtualenv_hash(self, name: str) -> tuple[str, str]:
         """Get the name of the virtualenv adjusted for windows if needed
 
         Returns (name, encoded_hash)
@@ -625,7 +633,7 @@ class Project:
         return self._download_location
 
     @property
-    def proper_names_db_path(self) -> str:
+    def proper_names_db_path(self) -> PosixPath:
         if self._proper_names_db_path is None:
             self._proper_names_db_path = Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
@@ -634,7 +642,7 @@ class Project:
         return self._proper_names_db_path
 
     @property
-    def proper_names(self) -> str:
+    def proper_names(self) -> list[Any]:
         with self.proper_names_db_path.open() as f:
             return f.read().splitlines()
 
@@ -669,7 +677,7 @@ class Project:
         return self._requirements_location
 
     @property
-    def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
+    def parsed_pipfile(self) -> TOMLDocument:
         """Parse Pipfile into a TOMLFile and cache it
 
         (call clear_pipfile_cache() afterwards if mutating)"""
@@ -695,9 +703,7 @@ class Project:
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    def _parse_pipfile(
-        self, contents: str
-    ) -> tomlkit.toml_document.TOMLDocument | TPipfile:
+    def _parse_pipfile(self, contents: str) -> TOMLDocument:
         try:
             return tomlkit.parse(contents)
         except Exception:
@@ -727,7 +733,7 @@ class Project:
         return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
-    def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
+    def settings(self) -> dict[Any, Any]:
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get("pipenv", {})
 
@@ -759,7 +765,17 @@ class Project:
             # Write the changes to disk.
             self.write_toml(p)
 
-    def lockfile(self, categories=None):
+    def lockfile(self, categories: list[str] | None = None) -> dict[
+        str,
+        dict[
+            str,
+            dict[str, str]
+            | int
+            | list[dict[str, String | bool]]
+            | dict[str, String]
+            | String,
+        ],
+    ]:
         """Pipfile.lock divided by PyPI and external dependencies."""
         lockfile_loaded = False
         if self.lockfile_exists:
@@ -797,15 +813,22 @@ class Project:
         return pf
 
     @property
-    def lockfile_location(self):
+    def lockfile_location(self) -> str:
         return f"{self.pipfile_location}.lock"
 
     @property
-    def lockfile_exists(self):
+    def lockfile_exists(self) -> bool:
         return os.path.isfile(self.lockfile_location)
 
     @property
-    def lockfile_content(self):
+    def lockfile_content(
+        self,
+    ) -> dict[
+        str,
+        dict[str, dict[str, str] | int | list[dict[str, str | bool]]]
+        | dict[str, dict[str, str | list[str]] | dict[str, str]]
+        | dict[str, dict[str, str | list[str]]],
+    ]:
         return self.load_lockfile()
 
     def get_editable_packages(self, category):
@@ -846,7 +869,7 @@ class Project:
         return self.get_pipfile_section("dev-packages")
 
     @property
-    def pipfile_is_empty(self):
+    def pipfile_is_empty(self) -> bool:
         if not self.pipfile_exists:
             return True
 
@@ -890,7 +913,9 @@ class Project:
         self.write_toml(data)
 
     @classmethod
-    def populate_source(cls, source):
+    def populate_source(
+        cls, source: dict[str, String | bool]
+    ) -> dict[str, String | bool]:
         """Derive missing values of source from the existing fields."""
         # Only URL parameter is mandatory, let the KeyError be thrown.
         if "name" not in source:
@@ -901,7 +926,9 @@ class Project:
             source["verify_ssl"] = str(source["verify_ssl"]).lower() == "true"
         return source
 
-    def get_or_create_lockfile(self, categories, from_pipfile=False):
+    def get_or_create_lockfile(
+        self, categories: list[str], from_pipfile: bool = False
+    ) -> Lockfile:
         from pipenv.utils.locking import Lockfile as Req_Lockfile
 
         if from_pipfile and self.pipfile_exists:
@@ -945,7 +972,9 @@ class Project:
         else:
             return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
 
-    def get_lockfile_meta(self):
+    def get_lockfile_meta(
+        self,
+    ) -> dict[str, dict[str, str] | int | list[dict[str, String | bool]] | Table]:
         from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
 
         if "source" in self.parsed_pipfile:
@@ -961,7 +990,7 @@ class Project:
             "requires": self.parsed_pipfile.get("requires", {}),
         }
 
-    def write_toml(self, data, path=None):
+    def write_toml(self, data: TOMLDocument, path: None = None) -> None:
         """Writes the given data structure out as TOML."""
         if path is None:
             path = self.pipfile_location
@@ -994,7 +1023,7 @@ class Project:
         # pipfile is mutated!
         self.clear_pipfile_cache()
 
-    def write_lockfile(self, content):
+    def write_lockfile(self, content: dict[str, Any]) -> None:
         """Write out the lockfile."""
         s = self._lockfile_encoder.encode(content)
         open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
@@ -1005,7 +1034,9 @@ class Project:
             if not s.endswith("\n"):
                 f.write("\n")
 
-    def pipfile_sources(self, expand_vars=True):
+    def pipfile_sources(
+        self, expand_vars: bool = True
+    ) -> list[dict[str, str | bool | String]]:
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
             sources = [self.default_source]
             if os.environ.get("PIPENV_PYPI_MIRROR"):
@@ -1032,7 +1063,7 @@ class Project:
                 return source
 
     @property
-    def sources(self):
+    def sources(self) -> list[dict[str, str | bool | String]]:
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
             meta_ = self.lockfile_content.get("_meta", {})
             sources_ = meta_.get("sources")
@@ -1043,14 +1074,14 @@ class Project:
             return self.pipfile_sources()
 
     @property
-    def sources_default(self):
+    def sources_default(self) -> dict[str, str | bool]:
         return self.sources[0]
 
     @property
     def index_urls(self):
         return [src.get("url") for src in self.sources]
 
-    def find_source(self, source):
+    def find_source(self, source: str) -> dict[str, str | bool | String]:
         """
         Given a source, find it.
 
@@ -1065,7 +1096,9 @@ class Project:
             source = self.get_source(url=source)
         return source
 
-    def get_source(self, name=None, url=None, refresh=False):
+    def get_source(
+        self, name: str | None = None, url: str | None = None, refresh: bool = False
+    ) -> dict[str, str | bool | String]:
         from pipenv.utils.internet import is_url_equal
 
         def find_source(sources, name=None, url=None):
@@ -1098,7 +1131,7 @@ class Project:
             raise SourceNotFound(target)
         return found
 
-    def get_package_name_in_pipfile(self, package_name, category):
+    def get_package_name_in_pipfile(self, package_name: str, category: str) -> None:
         """Get the equivalent package name in pipfile"""
         section = self.parsed_pipfile.get(category)
         if section is None:
@@ -1163,7 +1196,9 @@ class Project:
                 del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def generate_package_pipfile_entry(self, package, pip_line, category=None):
+    def generate_package_pipfile_entry(
+        self, package: InstallRequirement, pip_line: str, category: str | None = None
+    ) -> tuple[None, str, dict[str, str]] | tuple[None, str, str]:
         """Generate a package entry from pip install line
         given the installreq package and the pip line that generated it.
         """
@@ -1229,7 +1264,13 @@ class Project:
         else:
             return name, normalized_name, entry
 
-    def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
+    def add_package_to_pipfile(
+        self,
+        package: InstallRequirement,
+        pip_line: str,
+        dev: bool = False,
+        category: None = None,
+    ) -> tuple[bool, str, str]:
         category = category if category else "dev-packages" if dev else "packages"
 
         name, normalized_name, entry = self.generate_package_pipfile_entry(
@@ -1240,7 +1281,13 @@ class Project:
             name, normalized_name, entry, category=category
         )
 
-    def add_pipfile_entry_to_pipfile(self, name, normalized_name, entry, category=None):
+    def add_pipfile_entry_to_pipfile(
+        self,
+        name: None,
+        normalized_name: str,
+        entry: str | dict[str, str],
+        category: str | None = None,
+    ) -> tuple[bool, str, str]:
         newly_added = False
 
         # Read and append Pipfile.
@@ -1307,11 +1354,18 @@ class Project:
         self.write_toml(p)
         return source["name"]
 
-    def recase_pipfile(self):
+    def recase_pipfile(self) -> None:
         if self.ensure_proper_casing():
             self.write_toml(self.parsed_pipfile)
 
-    def load_lockfile(self, expand_env_vars=True):
+    def load_lockfile(self, expand_env_vars: bool = True) -> dict[
+        str,
+        dict[str, dict[str, str] | int | list[dict[str, str | bool]]]
+        | dict[str, dict[str, str | list[str]] | dict[str, str]]
+        | dict[str, list[dict[str, str | bool]]]
+        | dict[str, dict[str, str]]
+        | dict[str, dict[str, str | list[str]]],
+    ]:
         lockfile_modified = False
         with open(self.lockfile_location, encoding="utf-8") as lock:
             try:
@@ -1348,7 +1402,7 @@ class Project:
 
         return j
 
-    def get_lockfile_hash(self):
+    def get_lockfile_hash(self) -> str | None:
         if not os.path.exists(self.lockfile_location):
             return
 
@@ -1362,20 +1416,20 @@ class Project:
         # Lockfile exists but has no hash at all
         return ""
 
-    def calculate_pipfile_hash(self):
+    def calculate_pipfile_hash(self) -> str:
         # Update the lockfile if it is out-of-date.
         with open(self.pipfile_location) as pf:
             p = plette.Pipfile.load(pf)
         return p.get_hash().value
 
-    def ensure_proper_casing(self):
+    def ensure_proper_casing(self) -> bool:
         """Ensures proper casing of Pipfile packages"""
         pfile = self.parsed_pipfile
         casing_changed = self.proper_case_section(pfile.get("packages", {}))
         casing_changed |= self.proper_case_section(pfile.get("dev-packages", {}))
         return casing_changed
 
-    def proper_case_section(self, section):
+    def proper_case_section(self, section: Table) -> bool:
         """Verify proper casing is retrieved, when available, for each
         dependency in the section.
         """
@@ -1427,13 +1481,15 @@ class Project:
                 result = str(result.path)
         return result
 
-    def python(self, system=False) -> str:
+    def python(self, system: bool = False) -> str:
         """Path to the project python"""
         from pipenv.utils.shell import project_python
 
         return project_python(self, system=system)
 
-    def _which(self, command, location=None, allow_global=False):
+    def _which(
+        self, command: str, location: None = None, allow_global: bool = False
+    ) -> str:
         if not allow_global and location is None:
             if self.virtualenv_exists:
                 location = self.virtualenv_location
