@@ -8,18 +8,16 @@ import site
 import sys
 import typing
 from functools import cached_property
-from pathlib import Path
+from pathlib import Path, PosixPath
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.typing_extensions import Iterable
+from pipenv.project import Project
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
@@ -35,11 +33,17 @@ else:
     import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
-    from typing import ContextManager, Generator
+    from typing import ContextManager
 
-    from pipenv.project import Project, TPipfile, TSource
-    from pipenv.vendor import tomlkit
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.pip._vendor.typing_extensions import Iterable
+    from pipenv.project import Project
+    from pipenv.vendor.importlib_metadata import PathDistribution
+    from pipenv.vendor.tomlkit.items import String
+    from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 BASE_WORKING_SET = importlib_metadata.distributions()
 
@@ -48,11 +52,11 @@ class Environment:
     def __init__(
         self,
         prefix: str | None = None,
-        python: str | None = None,
+        python: None = None,
         is_venv: bool = False,
-        base_working_set: list[importlib_metadata.Distribution] = None,
-        pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
-        sources: list[TSource] | None = None,
+        base_working_set: None = None,
+        pipfile: TOMLDocument | None = None,
+        sources: list[dict[str, String | bool | str]] | None = None,
         project: Project | None = None,
     ):
         super().__init__()
@@ -325,7 +329,7 @@ class Environment:
         py_command = py_command % lines_as_str
         return py_command
 
-    def get_paths(self) -> dict[str, str] | None:
+    def get_paths(self) -> dict[str, PosixPath | str]:
         """
         Get the paths for the environment by running a subcommand
 
@@ -487,7 +491,7 @@ class Environment:
                 ]
                 pth.write_text("\n".join(contents))
 
-    def get_distributions(self) -> Generator[importlib_metadata.Distribution, None, None]:
+    def get_distributions(self) -> typing.Iterator[PathDistribution]:
         """
         Retrieves the distributions installed on the library path of the environment
 
@@ -531,11 +535,7 @@ class Environment:
             return False
 
         # Since is_relative_to is not available in Python 3.8, we use a workaround
-        if sys.version_info < (3, 9):
-            location_str = str(location)
-            return any(location_str.startswith(str(libdir)) for libdir in libdirs)
-        else:
-            return any(location.is_relative_to(libdir) for libdir in libdirs)
+        return any(location.is_relative_to(libdir) for libdir in libdirs)
 
     def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
@@ -724,7 +724,7 @@ class Environment:
 
         return any(d for d in self.get_distributions() if normalized_name(d) == pkgname)
 
-    def is_satisfied(self, req: InstallRequirement):
+    def is_satisfied(self, req: InstallRequirement) -> bool:
         match = next(
             iter(
                 d

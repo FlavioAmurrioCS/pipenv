@@ -1,5 +1,7 @@
 """A collection for utilities for working with files and paths."""
 
+from __future__ import annotations
+
 import atexit
 import io
 import os
@@ -8,7 +10,7 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional
+from typing import Any
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
@@ -70,7 +72,7 @@ def normalize_path(path: str) -> str:
     )
 
 
-def normalize_drive(path):
+def normalize_drive(path: str) -> str:
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be
@@ -116,7 +118,7 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
+def open_file(link, session: PipSession | None = None, stream: bool = False):
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with

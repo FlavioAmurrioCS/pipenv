@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import copy
 import itertools
 import os
@@ -6,10 +8,9 @@ from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from json import JSONDecodeError
 from pathlib import Path
-from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterator, List, Optional
+from tempfile import NamedTemporaryFile, _TemporaryFileWrapper
+from typing import TYPE_CHECKING, Any
 
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.utils.dependencies import (
     clean_resolved_dep,
     determine_vcs_revision_hash,
@@ -27,6 +28,13 @@ from pipenv.utils.pipfile import DEFAULT_NEWLINES, ProjectFile
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
 from pipenv.vendor.plette import lockfiles
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.project import Project
+    from pipenv.vendor.tomlkit.items import String, Table
 
 
 def merge_markers(entry, markers):
@@ -109,7 +117,24 @@ def format_requirement_for_lockfile(
     return name, entry
 
 
-def get_locked_dep(project, dep, pipfile_section, current_entry=None):
+def get_locked_dep(
+    project: Project,
+    dep: dict[str, list[str] | str | bool],
+    pipfile_section: Table,
+    current_entry: (
+        dict[str, String]
+        | dict[str, list[str] | str | bool]
+        | dict[str, str]
+        | dict[str, str | list[str]]
+        | None
+    ) = None,
+) -> dict[
+    str,
+    dict[str, str | list[str]]
+    | dict[str, str | bool | String | list[String]]
+    | dict[str, str | list[str] | list[String]]
+    | dict[str, str | String],
+]:
     # initialize default values
     is_top_level = False
 
@@ -137,7 +162,28 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     return lockfile_entry
 
 
-def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=None):
+def prepare_lockfile(
+    project: Project,
+    results: list[dict[str, list[str] | str | bool]],
+    pipfile: Table,
+    lockfile_section: dict[Any, Any],
+    old_lock_data: (
+        dict[
+            str,
+            dict[str, String]
+            | dict[str, str | list[str]]
+            | dict[str, list[str] | str | bool]
+            | dict[str, str],
+        ]
+        | None
+    ) = None,
+) -> dict[
+    str,
+    dict[str, str | list[str]]
+    | dict[str, str | bool | String | list[String]]
+    | dict[str, str | list[str] | list[String]]
+    | dict[str, str | String],
+]:
     for dep in results:
         if not dep:
             continue
@@ -164,7 +210,12 @@ def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=
 
 
 @contextmanager
-def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> None:
+def atomic_open_for_write(
+    target: str,
+    binary: bool = False,
+    newline: str | None = None,
+    encoding: str | None = None,
+) -> Iterator[_TemporaryFileWrapper]:
     """Atomically open `target` for writing.
     This is based on Lektor's `atomic_open()` utility, but simplified a lot
     to handle only writing, and skip many multi-process/thread edge cases
@@ -249,8 +300,8 @@ class Lockfile:
     path: Path = field(
         default_factory=lambda: Path(os.curdir).joinpath("Pipfile.lock").absolute()
     )
-    _requirements: Optional[List[Any]] = field(default_factory=list)
-    _dev_requirements: Optional[List[Any]] = field(default_factory=list)
+    _requirements: list[Any] | None = field(default_factory=list)
+    _dev_requirements: list[Any] | None = field(default_factory=list)
     projectfile: ProjectFile = None
     newlines: str = DEFAULT_NEWLINES
 
@@ -283,7 +334,14 @@ class Lockfile:
         lockfile = self.lockfile
         lockfile.__setitem__(k, v)
 
-    def __getitem__(self, k, *args, **kwargs):
+    def __getitem__(self, k: str, *args, **kwargs) -> dict[
+        str,
+        dict[str, str]
+        | int
+        | list[dict[str, str | bool]]
+        | dict[str, str | list[str]]
+        | dict[str, list[str] | str | bool],
+    ]:
         retval = None
         lockfile = self.lockfile
         try:
@@ -322,7 +380,7 @@ class Lockfile:
         return deps
 
     @classmethod
-    def read_projectfile(cls, path):
+    def read_projectfile(cls, path: str) -> ProjectFile:
         pf = ProjectFile.read(path, lockfiles.Lockfile, invalid_ok=True)
         return pf
 
@@ -339,8 +397,8 @@ class Lockfile:
 
     @classmethod
     def load_projectfile(
-        cls, path: Optional[str] = None, create: bool = True, data: Optional[Dict] = None
-    ) -> "ProjectFile":
+        cls, path: str | None = None, create: bool = True, data: None = None
+    ) -> ProjectFile:
         if not path:
             path = os.curdir
         path = Path(path).absolute()
@@ -369,8 +427,8 @@ class Lockfile:
 
     @classmethod
     def from_data(
-        cls, path: Optional[str], data: Optional[Dict], meta_from_project: bool = True
-    ) -> "Lockfile":
+        cls, path: str | None, data: dict | None, meta_from_project: bool = True
+    ) -> Lockfile:
         if path is None:
             raise MissingParameter("path")
         if data is None:
@@ -400,7 +458,7 @@ class Lockfile:
         )
 
     @classmethod
-    def load(cls, path: Optional[str], create: bool = True) -> "Lockfile":
+    def load(cls, path: str, create: bool = True) -> Lockfile:
         try:
             projectfile = cls.load_projectfile(path, create=create)
         except JSONDecodeError:
@@ -423,23 +481,23 @@ class Lockfile:
         return cls(**creation_args)
 
     @classmethod
-    def create(cls, path: Optional[str], create: bool = True) -> "Lockfile":
+    def create(cls, path: str | None, create: bool = True) -> Lockfile:
         return cls.load(path, create=create)
 
-    def get_section(self, name: str) -> Optional[Dict]:
+    def get_section(self, name: str) -> dict | None:
         return self.lockfile.get(name)
 
     @property
-    def develop(self) -> Dict:
+    def develop(self) -> dict:
         return self.lockfile.develop
 
     @property
-    def default(self) -> Dict:
+    def default(self) -> dict:
         return self.lockfile.default
 
     def get_requirements(
-        self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
-    ) -> Iterator[InstallRequirement]:
+        self, dev: bool = True, only: bool = False, categories: list[str] | None = None
+    ) -> Iterator[tuple[InstallRequirement, str]]:
         from pipenv.utils.requirements import requirement_from_lockfile
 
         if categories:
@@ -467,7 +525,7 @@ class Lockfile:
             install_req, _ = expansive_install_req_from_line(pip_line)
             yield install_req, pip_line_specified
 
-    def requirements_list(self, category: str) -> List[Dict]:
+    def requirements_list(self, category: str) -> list[dict]:
         if self.lockfile.get(category):
             return [
                 {name: entry._data} for name, entry in self.lockfile[category].items()

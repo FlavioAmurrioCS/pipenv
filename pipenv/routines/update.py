@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import json
 import os
 import sys
 from collections import defaultdict
+from typing import TYPE_CHECKING, Any
 
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
@@ -15,26 +18,29 @@ from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+
 
 def do_update(
-    project,
-    python=None,
-    pre=False,
-    system=False,
-    packages=None,
-    editable_packages=None,
-    site_packages=False,
-    pypi_mirror=None,
-    dev=False,
-    categories=None,
-    index_url=None,
-    extra_pip_args=None,
-    quiet=False,
-    bare=False,
-    dry_run=None,
-    outdated=False,
-    clear=False,
-    lock_only=False,
+    project: Project,
+    python: str | None = None,
+    pre: bool = False,
+    system: bool = False,
+    packages: list[Any] | None = None,
+    editable_packages: list[Any] | None = None,
+    site_packages: None = False,
+    pypi_mirror: None = None,
+    dev: bool = False,
+    categories: list[Any] | None = None,
+    index_url: None = None,
+    extra_pip_args: list[Any] | None = None,
+    quiet: bool = False,
+    bare: bool = False,
+    dry_run: None = None,
+    outdated: bool = False,
+    clear: bool = False,
+    lock_only: bool = False,
 ):
     ensure_project(
         project,
@@ -102,17 +108,17 @@ def do_update(
 
 
 def upgrade(
-    project,
-    pre=False,
-    system=False,
-    packages=None,
-    editable_packages=None,
-    pypi_mirror=None,
-    index_url=None,
-    categories=None,
-    dev=False,
-    lock_only=False,
-    extra_pip_args=None,
+    project: Project,
+    pre: bool = False,
+    system: bool = False,
+    packages: list[Any] | None = None,
+    editable_packages: list[Any] | None = None,
+    pypi_mirror: None = None,
+    index_url: None = None,
+    categories: list[Any] | None = None,
+    dev: bool = False,
+    lock_only: bool = False,
+    extra_pip_args: list[Any] | None = None,
 ):
     lockfile = project.lockfile()
     if not pre:

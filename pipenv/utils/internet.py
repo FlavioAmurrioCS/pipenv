@@ -1,16 +1,26 @@
+from __future__ import annotations
+
 import os
 import re
 from html.parser import HTMLParser
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
+if TYPE_CHECKING:
+    import pipenv.patched.pip._internal.network.session
+    from pipenv.vendor.tomlkit.items import String
+
 
 def get_requests_session(
-    max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR, source=None
-):
+    max_retries: int = 1,
+    verify_ssl: bool = True,
+    cache_dir: str = USER_CACHE_DIR,
+    source: None = None,
+) -> pipenv.patched.pip._internal.network.session.PipSession:
     """Load requests lazily."""
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     index_urls = [source] if source else None
@@ -24,7 +34,7 @@ def get_requests_session(
     return requests_session
 
 
-def is_valid_url(url):
+def is_valid_url(url: str) -> bool:
     """Checks if a given string is an url"""
     pieces = urlparse(url)
     return all([pieces.scheme, pieces.netloc])
@@ -48,7 +58,7 @@ def create_mirror_source(url, name):
     }
 
 
-def download_file(url, filename, max_retries=1):
+def download_file(url: str, filename: str, max_retries: int = 1):
     """Downloads file from url to a path with filename"""
     r = get_requests_session(max_retries).get(url, stream=True)
     r.close()
@@ -89,7 +99,7 @@ def get_url_name(url):
     return urllib3_util.parse_url(url).host
 
 
-def is_url_equal(url: str, other_url: str) -> bool:
+def is_url_equal(url: str, other_url: String | str) -> bool:
     """
     Compare two urls by scheme, host, and path, ignoring auth
 
@@ -117,7 +127,7 @@ def is_url_equal(url: str, other_url: str) -> bool:
     return unparsed == unparsed_other
 
 
-def proper_case(package_name):
+def proper_case(package_name: str) -> str:
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = get_requests_session().get(

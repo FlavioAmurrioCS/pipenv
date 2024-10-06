@@ -1,21 +1,28 @@
+from __future__ import annotations
+
 import contextlib
+from typing import TYPE_CHECKING
 
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+    from pipenv.vendor.tomlkit.items import String
+
 
 def do_lock(
-    project,
-    system=False,
-    clear=False,
-    pre=False,
-    write=True,
-    quiet=False,
-    pypi_mirror=None,
-    categories=None,
-    extra_pip_args=None,
+    project: Project,
+    system: bool = False,
+    clear: bool = False,
+    pre: bool = False,
+    write: bool = True,
+    quiet: bool = False,
+    pypi_mirror: None = None,
+    categories: None = None,
+    extra_pip_args: None = None,
 ):
     """Executes the freeze functionality."""
     if not pre:
@@ -104,7 +111,22 @@ def do_lock(
         return lockfile
 
 
-def overwrite_with_default(default, dev):
+def overwrite_with_default(
+    default: dict[str, dict[str, str | String] | dict[str, str | list[str]]],
+    dev: dict[
+        str,
+        dict[str, str | list[str]]
+        | dict[str, str | bool | String | list[String]]
+        | dict[str, str | list[str] | list[String]]
+        | dict[str, str | String],
+    ],
+) -> dict[
+    str,
+    dict[str, str | list[str]]
+    | dict[str, str | bool | String | list[String]]
+    | dict[str, str | list[str] | list[String]]
+    | dict[str, str | String],
+]:
     for pkg in set(dev) & set(default):
         dev[pkg] = default[pkg]
     return dev

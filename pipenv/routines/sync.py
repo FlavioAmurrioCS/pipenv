@@ -1,23 +1,29 @@
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING, Any
 
 from pipenv import exceptions
 from pipenv.routines.install import do_init, do_install_dependencies
 from pipenv.utils import console, fileutils
 from pipenv.utils.project import ensure_project
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+
 
 def do_sync(
-    project,
-    dev=False,
-    python=None,
-    bare=False,
-    clear=False,
-    pypi_mirror=None,
-    system=False,
-    deploy=False,
-    extra_pip_args=None,
-    categories=None,
-    site_packages=False,
+    project: Project,
+    dev: bool = False,
+    python: str | None = None,
+    bare: bool = False,
+    clear: bool = False,
+    pypi_mirror: None = None,
+    system: bool = False,
+    deploy: bool = False,
+    extra_pip_args: list[Any] | None = None,
+    categories: list[Any] | None = None,
+    site_packages: bool | None = False,
 ):
     # The lock file needs to exist because sync won't write to it.
     if not project.lockfile_exists:

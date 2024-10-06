@@ -1,10 +1,16 @@
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
 
 from pipenv import environments
 from pipenv.vendor import click, dotenv
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
 
-def load_dot_env(project, as_dict=False, quiet=False):
+
+def load_dot_env(project: Project, as_dict: bool = False, quiet: bool = False):
     """Loads .env file into sys.environ."""
     if not project.s.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file

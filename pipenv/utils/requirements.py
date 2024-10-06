@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
 import re
-from typing import Tuple
+from typing import TYPE_CHECKING
 from urllib.parse import quote, unquote
 
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -14,8 +16,11 @@ from pipenv.utils.indexes import parse_indexes
 from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
 
-def redact_netloc(netloc: str) -> Tuple[str]:
+
+def redact_netloc(netloc: str) -> tuple[str]:
     """
     Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
 
@@ -50,12 +55,14 @@ def redact_auth_from_url(url: str) -> str:
     return _transform_url(url, redact_netloc)[0]
 
 
-def normalize_name(pkg) -> str:
+def normalize_name(pkg: str) -> str:
     """Given a package name, return its normalized, non-canonicalized form."""
     return pkg.replace("_", "-").lower()
 
 
-def import_requirements(project, r=None, dev=False, categories=None):
+def import_requirements(
+    project: Project, r: str | None = None, dev: bool = False, categories: None = None
+):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -144,8 +151,11 @@ BAD_PACKAGES = (
 
 
 def requirement_from_lockfile(
-    package_name, package_info, include_hashes=True, include_markers=True
-):
+    package_name: str,
+    package_info: dict[str, list[str] | str | bool],
+    include_hashes: bool = True,
+    include_markers: bool = True,
+) -> str:
     from pipenv.utils.dependencies import is_editable_path, is_star, normalize_vcs_url
 
     # Handle string requirements
@@ -227,7 +237,11 @@ def requirement_from_lockfile(
     return pip_line
 
 
-def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
+def requirements_from_lockfile(
+    deps: dict[str, dict[str, str | list[str]] | dict[str, str]],
+    include_hashes: bool = True,
+    include_markers: bool = True,
+) -> list[str]:
     pip_packages = []
 
     for package_name, package_info in deps.items():
