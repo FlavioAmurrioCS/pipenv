@@ -9,9 +9,10 @@ import stat
 import subprocess
 import time
 import warnings
+from collections.abc import Iterable
 from functools import partial
 from itertools import count, islice
-from typing import Any, Iterable
+from typing import Any
 
 DIRECTORY_CLEANUP_TIMEOUT = 1.0
 

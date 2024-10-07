@@ -14,12 +14,9 @@ from urllib.parse import urlparse
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.typing_extensions import Iterable
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
@@ -35,9 +32,12 @@ else:
     import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
-    from typing import ContextManager, Generator
 
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.pip._vendor.typing_extensions import Iterable
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
 
@@ -531,11 +531,7 @@ class Environment:
             return False
 
         # Since is_relative_to is not available in Python 3.8, we use a workaround
-        if sys.version_info < (3, 9):
-            location_str = str(location)
-            return any(location_str.startswith(str(libdir)) for libdir in libdirs)
-        else:
-            return any(location.is_relative_to(libdir) for libdir in libdirs)
+        return any(location.is_relative_to(libdir) for libdir in libdirs)
 
     def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
@@ -548,7 +544,7 @@ class Environment:
         return packages
 
     @contextlib.contextmanager
-    def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
+    def get_finder(self, pre: bool = False) -> Generator[PackageFinder]:
         from .utils.resolver import get_package_finder
 
         pip_command = InstallCommand(
