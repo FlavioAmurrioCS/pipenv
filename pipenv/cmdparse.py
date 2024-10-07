@@ -1,8 +1,14 @@
+from __future__ import annotations
+
 import itertools
 import re
 import shlex
+from typing import TYPE_CHECKING
 
 from pipenv.vendor import tomlkit
+
+if TYPE_CHECKING:
+    from pipenv.vendor.tomlkit.items import String
 
 
 class ScriptEmptyError(ValueError):
@@ -13,7 +19,7 @@ class ScriptParseError(ValueError):
     pass
 
 
-def _quote_if_contains(value, pattern):
+def _quote_if_contains(value: str, pattern: str) -> str:
     if next(iter(re.finditer(pattern, value)), None):
         return '"{}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', value))
     return value
@@ -48,13 +54,13 @@ class Script:
 
     script_types = ["call"]
 
-    def __init__(self, command, args=None):
+    def __init__(self, command: str, args: list[str] | None = None) -> None:
         self._parts = [command]
         if args:
             self._parts.extend(args)
 
     @classmethod
-    def parse(cls, value):
+    def parse(cls, value: list[str] | str | String) -> Script:
         if isinstance(value, tomlkit.items.InlineTable):
             cmd_string = _parse_toml_inline_table(value)
             value = shlex.split(cmd_string)
@@ -68,21 +74,21 @@ class Script:
         return f"Script({self._parts!r})"
 
     @property
-    def command(self):
+    def command(self) -> str:
         return self._parts[0]
 
     @property
-    def args(self):
+    def args(self) -> list[str]:
         return self._parts[1:]
 
     @property
-    def cmd_args(self):
+    def cmd_args(self) -> list[str]:
         return self._parts
 
-    def extend(self, extra_args):
+    def extend(self, extra_args: list[str]) -> None:
         self._parts.extend(extra_args)
 
-    def cmdify(self):
+    def cmdify(self) -> str:
         """Encode into a cmd-executable string.
 
         This re-implements CreateProcess's quoting logic to turn a list of

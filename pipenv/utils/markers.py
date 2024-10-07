@@ -1,17 +1,19 @@
+from __future__ import annotations
+
 import itertools
 import operator
 import re
 from collections.abc import Mapping, Set
 from dataclasses import dataclass, fields
 from functools import reduce
-from typing import Optional
+from typing import TYPE_CHECKING
 
 from pipenv.patched.pip._vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
-from pipenv.patched.pip._vendor.packaging.specifiers import (
-    Specifier,
-    SpecifierSet,
-)
+from pipenv.patched.pip._vendor.packaging.specifiers import Specifier, SpecifierSet
+
+if TYPE_CHECKING:
+    from pipenv.vendor.tomlkit.items import Array, String
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
@@ -23,20 +25,20 @@ class RequirementError(Exception):
 
 @dataclass
 class PipenvMarkers:
-    os_name: Optional[str] = None
-    sys_platform: Optional[str] = None
-    platform_machine: Optional[str] = None
-    platform_python_implementation: Optional[str] = None
-    platform_release: Optional[str] = None
-    platform_system: Optional[str] = None
-    platform_version: Optional[str] = None
-    python_version: Optional[str] = None
-    python_full_version: Optional[str] = None
-    implementation_name: Optional[str] = None
-    implementation_version: Optional[str] = None
+    os_name: str | None = None
+    sys_platform: str | None = None
+    platform_machine: str | None = None
+    platform_python_implementation: str | None = None
+    platform_release: str | None = None
+    platform_system: str | None = None
+    platform_version: str | None = None
+    python_version: str | None = None
+    python_full_version: str | None = None
+    implementation_name: str | None = None
+    implementation_version: str | None = None
 
     @classmethod
-    def make_marker(cls, marker_string):
+    def make_marker(cls, marker_string: str) -> Marker:
         try:
             marker = Marker(marker_string)
         except InvalidMarker:
@@ -46,7 +48,9 @@ class PipenvMarkers:
         return marker
 
     @classmethod
-    def from_pipfile(cls, name, pipfile):
+    def from_pipfile(
+        cls, name: str, pipfile: dict[str, Array | String | bool | str]
+    ) -> Marker:
         attr_fields = list(fields(cls))
         found_keys = [k.name for k in attr_fields if k.name in pipfile]
         marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]

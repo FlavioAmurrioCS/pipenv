@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 import contextlib
 import os
 import re
 import shutil
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pipenv import environments, exceptions
 from pipenv.utils import Confirm, console, err
@@ -12,8 +15,11 @@ from pipenv.utils.environment import ensure_environment
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_python, shorten_path
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
 
-def warn_in_virtualenv(project):
+
+def warn_in_virtualenv(project: Project) -> None:
     # Only warn if pipenv isn't already active.
     if environments.is_in_virtualenv() and not project.s.is_quiet():
         err.print("[green]Courtesy Notice[/green]:")
@@ -32,7 +38,12 @@ def warn_in_virtualenv(project):
         )
 
 
-def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
+def do_create_virtualenv(
+    project: Project,
+    python: None = None,
+    site_packages: None = None,
+    pypi_mirror: None = None,
+):
     """Creates a virtualenv."""
     err.print("[bold]Creating a virtualenv for this project[/bold]")
     err.print(f"Pipfile: [bold][yellow]{project.pipfile_location}[/yellow][/bold]")
@@ -102,7 +113,9 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     do_where(project, virtualenv=True, bare=False)
 
 
-def _create_virtualenv_cmd(project, python, site_packages=False):
+def _create_virtualenv_cmd(
+    project: Project, python: str, site_packages: bool | None = False
+) -> list[str]:
     cmd = [
         Path(sys.executable).absolute().as_posix(),
         "-m",
@@ -123,7 +136,12 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
     return cmd
 
 
-def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
+def ensure_virtualenv(
+    project: Project,
+    python: str | None = None,
+    site_packages: None = None,
+    pypi_mirror: None = None,
+):
     """Creates a virtualenv, if one doesn't exist."""
 
     if not project.virtualenv_exists:
@@ -182,7 +200,7 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
         )
 
 
-def cleanup_virtualenv(project, bare=True):
+def cleanup_virtualenv(project: Project, bare: bool = True) -> None:
     """Removes the virtualenv directory from the system."""
     if not bare:
         console.print("[red]Environment creation aborted.[/red]")
@@ -196,7 +214,7 @@ def cleanup_virtualenv(project, bare=True):
         err.print(f"[cyan]{e}[/cyan]")
 
 
-def ensure_python(project, python=None):
+def ensure_python(project: Project, python: str | None = None) -> None:
     # Runtime import is necessary due to the possibility that the environments module may have been reloaded.
     if project.s.PIPENV_PYTHON and not python:
         python = project.s.PIPENV_PYTHON
@@ -307,7 +325,7 @@ def ensure_python(project, python=None):
     return path_to_python
 
 
-def find_a_system_python(line):
+def find_a_system_python(line: str | None) -> None:
     """Find a Python installation from a given line.
 
     This tries to parse the line in various of ways:
@@ -332,7 +350,7 @@ def find_a_system_python(line):
     return python_entry
 
 
-def do_where(project, virtualenv=False, bare=True):
+def do_where(project: Project, virtualenv: bool = False, bare: bool = True) -> None:
     """Executes the where functionality."""
     if not virtualenv:
         if not project.pipfile_exists:
@@ -361,7 +379,7 @@ def do_where(project, virtualenv=False, bare=True):
             console.print(location)
 
 
-def inline_activate_virtual_environment(project):
+def inline_activate_virtual_environment(project: Project) -> None:
     root = project.virtualenv_location
     if os.path.exists(os.path.join(root, "pyvenv.cfg")):
         _inline_activate_venv(project)
@@ -371,7 +389,7 @@ def inline_activate_virtual_environment(project):
         os.environ["VIRTUAL_ENV"] = root
 
 
-def _inline_activate_venv(project):
+def _inline_activate_venv(project: Project) -> None:
     """Built-in venv doesn't have activate_this.py, but doesn't need it anyway.
 
     As long as we find the correct executable, built-in venv sets up the
