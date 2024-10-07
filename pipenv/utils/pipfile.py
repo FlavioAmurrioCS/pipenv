@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import contextlib
 import io
 import itertools
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any
 
 from pipenv import environments, exceptions
 from pipenv.utils import console, err
@@ -15,6 +17,10 @@ from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
 from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 from pipenv.vendor.plette import pipfiles
+
+if TYPE_CHECKING:
+    from pipenv.project import Project
+    from pipenv.utils.locking import Lockfile
 
 DEFAULT_NEWLINES = "\n"
 
@@ -50,7 +56,7 @@ def walk_up(bottom):
     yield from walk_up(new_path)
 
 
-def find_pipfile(max_depth=3):
+def find_pipfile(max_depth: int = 3) -> str:
     """Returns the path of a Pipfile in parent directories."""
     i = 0
     for c, _, _ in walk_up(os.getcwd()):
@@ -64,7 +70,11 @@ def find_pipfile(max_depth=3):
 
 
 def ensure_pipfile(
-    project, validate=True, skip_requirements=False, system=False, categories=None
+    project: Project,
+    validate: bool = True,
+    skip_requirements: bool = False,
+    system: bool = False,
+    categories: None = None,
 ):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -143,7 +153,7 @@ def reorder_source_keys(data):
     return data
 
 
-def preferred_newlines(f):
+def preferred_newlines(f: io.TextIOWrapper) -> str:
     if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
@@ -153,10 +163,12 @@ def preferred_newlines(f):
 class ProjectFile:
     location: str
     line_ending: str
-    model: Optional[Any] = field(default_factory=dict)
+    model: Any | None = field(default_factory=dict)
 
     @classmethod
-    def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
+    def read(
+        cls, location: str, model_cls: type[Lockfile], invalid_ok: bool = False
+    ) -> ProjectFile:
         if not os.path.exists(location) and not invalid_ok:
             raise FileNotFoundError(location)
         try:
@@ -268,11 +280,11 @@ class PipfileLoader(pipfiles.Pipfile):
 class Pipfile:
     path: Path
     projectfile: ProjectFile
-    pipfile: Optional[PipfileLoader] = None
-    _pyproject: Optional[tomlkit.TOMLDocument] = field(default_factory=tomlkit.document)
-    build_system: Optional[Dict] = field(default_factory=dict)
-    _requirements: Optional[List] = field(default_factory=list)
-    _dev_requirements: Optional[List] = field(default_factory=list)
+    pipfile: PipfileLoader | None = None
+    _pyproject: tomlkit.TOMLDocument | None = field(default_factory=tomlkit.document)
+    build_system: dict | None = field(default_factory=dict)
+    _requirements: list | None = field(default_factory=list)
+    _dev_requirements: list | None = field(default_factory=list)
 
     def __post_init__(self):
         # Validators or equivalent logic here
@@ -395,7 +407,7 @@ class Pipfile:
         return cls.read_projectfile(pipfile_path)
 
     @classmethod
-    def load(cls, path: str, create: bool = False) -> "Pipfile":
+    def load(cls, path: str, create: bool = False) -> Pipfile:
         """..."""
 
         projectfile = cls.load_projectfile(path, create=create)

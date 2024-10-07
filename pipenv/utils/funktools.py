@@ -2,6 +2,8 @@
 A small collection of useful functional tools for working with iterables.
 """
 
+from __future__ import annotations
+
 import errno
 import locale
 import os
@@ -9,14 +11,15 @@ import stat
 import subprocess
 import time
 import warnings
+from collections.abc import Iterable, Iterator
 from functools import partial
 from itertools import count, islice
-from typing import Any, Iterable
+from typing import Any
 
 DIRECTORY_CLEANUP_TIMEOUT = 1.0
 
 
-def _is_iterable(elem: Any) -> bool:
+def _is_iterable(elem: tuple[str, str] | int | str | list[str] | None) -> bool:
     if getattr(elem, "__iter__", False) or isinstance(elem, Iterable):
         return True
     return False
@@ -41,7 +44,7 @@ def chunked(n: int, iterable: Iterable) -> Iterable:
     return iter(partial(take, n, iter(iterable)), [])
 
 
-def unnest(elem: Iterable) -> Any:
+def unnest(elem: Any) -> Iterator[int | None]:
     """Flatten an arbitrarily nested iterable.
 
     :param elem: An iterable to flatten

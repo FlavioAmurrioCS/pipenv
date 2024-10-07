@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
 import sys
+from typing import TYPE_CHECKING
 
 from pipenv import environments
 from pipenv.__version__ import __version__
@@ -33,6 +36,10 @@ from pipenv.vendor.click import (
     pass_context,
     version_option,
 )
+
+if TYPE_CHECKING:
+    from pipenv.project import Project
+    from pipenv.vendor.click.core import Context
 
 with console.capture() as capture:
     console.print("[bold]pipenv[/bold]", end="")
@@ -774,7 +781,9 @@ if __name__ == "__main__":
     cli()
 
 
-def do_py(project, ctx=None, system=False, bare=False):
+def do_py(
+    project: Project, ctx: Context | None = None, system: bool = False, bare: bool = False
+):
     if not project.virtualenv_exists:
         err.print(
             "[red]No virtualenv has been created for this project[/red] "
