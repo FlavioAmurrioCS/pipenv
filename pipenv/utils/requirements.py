@@ -1,6 +1,5 @@
 import os
 import re
-from typing import Tuple
 from urllib.parse import quote, unquote
 
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -15,7 +14,7 @@ from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
 
 
-def redact_netloc(netloc: str) -> Tuple[str]:
+def redact_netloc(netloc: str) -> tuple[str]:
     """
     Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
 

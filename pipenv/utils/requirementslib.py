@@ -1,7 +1,7 @@
 import os
 from collections.abc import ItemsView, Mapping, Sequence, Set
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Optional, TypeVar, Union
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -25,8 +25,8 @@ from pipenv.vendor import tomlkit
 
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
-PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
+PipfileEntryType = Union[STRING_TYPE, bool, tuple[STRING_TYPE], list[STRING_TYPE]]
+PipfileType = Union[STRING_TYPE, dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
