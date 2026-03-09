@@ -136,7 +136,10 @@ class Resolver:
         self._hash_cache = None
 
     def __repr__(self):
-        return f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, sources={self.sources})>"
+        return (
+            f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
+            f"sources={self.sources})>"
+        )
 
     @staticmethod
     def _get_pip_command():
@@ -154,7 +157,8 @@ class Resolver:
     ) -> bool:
         if req.markers and not req.markers.evaluate():
             err.print(
-                f"Could not find a matching version of {req}; {req.markers} for your environment, its dependencies will be skipped.",
+                f"Could not find a matching version of {req}; {req.markers} for your environment, "
+                "its dependencies will be skipped.",
             )
             return True
         return False

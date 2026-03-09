@@ -50,6 +50,7 @@ META_SECTIONS = {
 
 
 class PipfileSection(DataModel):
+
     """
     Dummy pipfile validator that needs to be completed in a future PR
     Hint: many pipfile features are undocumented in  pipenv/project.py
@@ -63,7 +64,12 @@ class PipfileSection(DataModel):
 class Meta(DataModel):
     """Representation of the `_meta` section in a Pipfile.lock."""
 
-    __SCHEMA__ = {"hash": "dict", "pipfile-spec": "integer", "requires": "dict", "sources": "list"}
+    __SCHEMA__ = {
+        "hash": "dict",
+        "pipfile-spec": "integer",
+        "requires": "dict",
+        "sources": "list"
+    }
 
     @classmethod
     def validate(cls, data):
@@ -126,7 +132,6 @@ class Meta(DataModel):
 
 class Pipenv(DataModel):
     """Represent the [pipenv] section in Pipfile"""
-
     __SCHEMA__ = {}
     __OPTIONAL__ = {
         "allow_prereleases": bool,

@@ -462,7 +462,7 @@ def dependency_as_pip_install_line(
                     req_str = f"{location}{extras}"
                 # Add markers for file/path dependencies
                 if include_markers and dep.get("markers"):
-                    req_str = f"{req_str}; {dep['markers']}"
+                    req_str = f'{req_str}; {dep["markers"]}'
                 line.append(req_str)
                 break
         else:
@@ -478,7 +478,7 @@ def dependency_as_pip_install_line(
                         version = f"=={version}"
                     line[-1] += version
             if include_markers and dep.get("markers"):
-                line[-1] = f"{line[-1]}; {dep['markers']}"
+                line[-1] = f'{line[-1]}; {dep["markers"]}'
 
             if include_hashes and dep.get("hashes"):
                 line.extend([f" --hash={hash}" for hash in dep["hashes"]])
@@ -517,7 +517,7 @@ def dependency_as_pip_install_line(
                 git_req += f"#subdirectory={dep['subdirectory']}"
             # Add markers for VCS dependencies (PEP 508 format supports this)
             if include_markers and dep.get("markers"):
-                git_req = f"{git_req}; {dep['markers']}"
+                git_req = f'{git_req}; {dep["markers"]}'
 
         line.append(git_req)
 
@@ -1193,7 +1193,8 @@ class VCSURLProcessor:
             var_name = match.group(1) or match.group(2)
             if var_name not in os.environ:
                 raise PipenvUsageError(
-                    f"Environment variable '${var_name}' not found. Please ensure all required environment variables are set."
+                    f"Environment variable '${var_name}' not found. "
+                    "Please ensure all required environment variables are set."
                 )
             return os.environ[var_name]
 

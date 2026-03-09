@@ -93,7 +93,8 @@ def cli(
 
     if "PIPENV_COLORBLIND" in os.environ:
         err.print(
-            "PIPENV_COLORBLIND is deprecated, use NO_COLOR per https://no-color.org/ instead",
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR"
+            " per https://no-color.org/ instead",
         )
 
     if man:
@@ -155,7 +156,8 @@ def cli(
             # Abort if --system (or running in a virtualenv).
             if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
                 console.print(
-                    "You are attempting to remove a virtualenv that Pipenv did not create. Aborting.",
+                    "You are attempting to remove a virtualenv that "
+                    "Pipenv did not create. Aborting.",
                     style="red",
                 )
                 ctx.abort()
@@ -447,7 +449,8 @@ def activate(state):
 
     if not state.project.virtualenv_exists:
         err.print(
-            "No virtualenv has been created for this project yet!\nRun [green bold]pipenv install[/green bold] to create one.",
+            "No virtualenv has been created for this project yet!\n"
+            "Run [green bold]pipenv install[/green bold] to create one.",
             style="red bold",
         )
         sys.exit(1)
@@ -492,14 +495,16 @@ def run(state, command, args):
 
 
 @cli.command(
-    short_help="Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.",
+    short_help="Checks for PyUp Safety security vulnerabilities and against"
+    " PEP 508 markers provided in Pipfile.",
     context_settings=subcommand_context,
 )
 @option(
     "--db",
     nargs=1,
     default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
-    help="Path or URL to a PyUp Safety vulnerabilities database. Default: ENV PIPENV_SAFETY_DB or None.",
+    help="Path or URL to a PyUp Safety vulnerabilities database."
+    " Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
     "--ignore",
@@ -989,7 +994,8 @@ def verify(state):
     "--no-lock",
     is_flag=True,
     default=False,
-    help="Use version specifiers from Pipfile instead of locked versions. Useful for generating flexible requirements for libraries.",
+    help="Use version specifiers from Pipfile instead of locked versions. "
+    "Useful for generating flexible requirements for libraries.",
 )
 @pass_state
 def requirements(

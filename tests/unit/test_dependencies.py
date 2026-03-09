@@ -6,7 +6,11 @@ from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 def test_clean_resolved_dep_with_vcs_url():
     project = {}  # Mock project object, adjust as needed
-    dep = {"name": "example-package", "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git", "ref": "main"}
+    dep = {
+        "name": "example-package",
+        "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git",
+        "ref": "main"
+    }
 
     result = clean_resolved_dep(project, dep)
 
@@ -14,13 +18,12 @@ def test_clean_resolved_dep_with_vcs_url():
     assert result["example-package"]["git"] == "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git"
     assert result["example-package"]["ref"] == "main"
 
-
 def test_clean_resolved_dep_with_vcs_url_and_extras():
     project = {}  # Mock project object, adjust as needed
     dep = {
         "name": "example-package",
         "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git[extra1,extra2]",
-        "ref": "main",
+        "ref": "main"
     }
 
     result = clean_resolved_dep(project, dep)
@@ -200,7 +203,6 @@ class TestCandidateEvaluatorPrereleases:
     def _make_candidate(self, name, version):
         """Create a mock InstallationCandidate."""
         from pipenv.patched.pip._internal.models.link import Link
-
         link = Link(f"https://example.com/{name}-{version}.tar.gz")
         # InstallationCandidate expects a string version, not a parsed version
         return InstallationCandidate(name, version, link)
