@@ -18,7 +18,6 @@ def test_install_error_formats_list():
     assert "Couldn't install package" in text
 
 
-
 def test_cleanup_procs_raises_install_error_with_deps():
     """
     _cleanup_procs() should include the deps context from subprocess result
@@ -58,12 +57,15 @@ def test_cleanup_procs_raises_install_error_with_deps():
     assert "flask==3.0.0" in text
 
 
-
 def test_pip_install_deps_attaches_deps_to_subprocess(monkeypatch, tmp_path):
     """
     pip_install_deps() should attach deps to the returned subproccess result.
     so error handling can display it.
     """
+    # Force the pip code path so the dispatcher doesn't route to uv backends
+    # when PIPENV_RESOLVER is set in the test runner environment.
+    monkeypatch.setenv("PIPENV_RESOLVER", "pip")
+
     from pipenv.utils import pip as pip_utils
 
     class _Settings:
@@ -84,6 +86,7 @@ def test_pip_install_deps_attaches_deps_to_subprocess(monkeypatch, tmp_path):
     monkeypatch.setattr(pip_utils, "get_pip_args", lambda *a, **k: [])
     monkeypatch.setattr(pip_utils, "prepare_pip_source_args", lambda sources: [])
     monkeypatch.setattr(pip_utils, "normalize_path", lambda p: p)
+
     # Capture subprocess_run call and return a dummy proc object
     class _DummyProc:
         def __init__(self):
@@ -117,4 +120,3 @@ def test_pip_install_deps_attaches_deps_to_subprocess(monkeypatch, tmp_path):
 
     assert hasattr(c, "deps")
     assert c.deps == deps
-

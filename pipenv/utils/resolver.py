@@ -822,6 +822,31 @@ def actually_resolve_deps(
 
 
 def resolve(cmd, st, project):
+    """Dispatcher that delegates to the appropriate resolver based on PIPENV_RESOLVER.
+
+    Reads ``os.environ.get("PIPENV_RESOLVER", "pip")`` and calls:
+      - ``"pip"`` → :func:`_pip_resolve` (default, subprocess-based pip resolver)
+      - ``"uv-pip-compile"`` → :func:`pipenv.uv.uv_resolve`
+      - ``"uv-lock"`` → :func:`pipenv.uv_lock.uv_lock_resolve`
+
+    All three backends share the same ``(cmd, st, project)`` signature and
+    return a :class:`subprocess.CompletedProcess`.
+    """
+    resolver_name = os.environ.get("PIPENV_RESOLVER", "pip")
+    if resolver_name == "uv-pip-compile":
+        from pipenv.uv import uv_resolve
+
+        return uv_resolve(cmd, st, project)
+    elif resolver_name == "uv-lock":
+        from pipenv.uv_lock import uv_lock_resolve
+
+        return uv_lock_resolve(cmd, st, project)
+    else:
+        return _pip_resolve(cmd, st, project)
+
+
+def _pip_resolve(cmd, st, project):
+    """The default pip-based resolver that spawns a subprocess."""
     import threading
 
     from pipenv.cmdparse import Script

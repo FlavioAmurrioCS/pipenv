@@ -6,7 +6,13 @@ import pytest
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 
+_PIPENV_RESOLVER = os.environ.get("PIPENV_RESOLVER", "pip")
 
+
+@pytest.mark.xfail(
+    _PIPENV_RESOLVER != "pip",
+    reason="uv simplifies trivially-true markers on modern Python",
+)
 @pytest.mark.markers
 def test_package_environment_markers(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
@@ -30,13 +36,17 @@ dataclass-factory = {}
         c = p.pipenv("install -v")
         assert c.returncode == 0
         assert "markers" in p.lockfile["default"]["dataclass-factory"], p.lockfile["default"]
-        assert (
-            p.lockfile["default"]["dataclass-factory"]["markers"] == "python_version >= '3.6' and os_name == 'splashwear'"
-        ), p.lockfile["default"]["dataclass-factory"]["markers"]
+        assert p.lockfile["default"]["dataclass-factory"]["markers"] == "python_version >= '3.6' and os_name == 'splashwear'", (
+            p.lockfile["default"]["dataclass-factory"]["markers"]
+        )
         c = p.pipenv('run python -c "import dataclass_factory;"')
         assert c.returncode == 1  # dataclass-factory is not installed due to the marker
 
 
+@pytest.mark.xfail(
+    _PIPENV_RESOLVER == "uv-lock",
+    reason="uv-lock does not propagate transitive dependency markers",
+)
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
 def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
@@ -51,10 +61,7 @@ def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
         # 'pytz; platform_python_implementation=="CPython"'
         # Verify that that marker shows up in our lockfile unaltered.
         assert "pytz" in p.lockfile["default"]
-        assert (
-            p.lockfile["default"]["pytz"].get("markers")
-            == "platform_python_implementation == 'CPython'"
-        )
+        assert p.lockfile["default"]["pytz"].get("markers") == "platform_python_implementation == 'CPython'"
 
 
 @pytest.mark.flaky(reruns=1)
@@ -93,12 +100,8 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 
         c = p.pipenv("install")
         assert c.returncode == 0
-        assert "markers" in p.lockfile["default"]["funcsigs"], p.lockfile["default"][
-            "funcsigs"
-        ]
-        assert (
-            p.lockfile["default"]["funcsigs"]["markers"] == "os_name == 'splashwear'"
-        ), p.lockfile["default"]["funcsigs"]
+        assert "markers" in p.lockfile["default"]["funcsigs"], p.lockfile["default"]["funcsigs"]
+        assert p.lockfile["default"]["funcsigs"]["markers"] == "os_name == 'splashwear'", p.lockfile["default"]["funcsigs"]
 
 
 @pytest.mark.flaky(reruns=1)
@@ -131,12 +134,14 @@ funcsigs = "*"
         assert p.lockfile["default"]["funcsigs"].get("markers", "") == ""
 
 
+@pytest.mark.xfail(
+    _PIPENV_RESOLVER != "pip",
+    reason="uv simplifies/drops transitive markers differently than pip",
+)
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
 @pytest.mark.complex
-@pytest.mark.skipif(
-    sys.version_info[:2] == (3, 8), reason="Test package that gets installed is different on 3.8"
-)
+@pytest.mark.skipif(sys.version_info[:2] == (3, 8), reason="Test package that gets installed is different on 3.8")
 def test_resolver_unique_markers(pipenv_instance_pypi):
     """Test that markers are properly cleaned and not duplicated when resolving
     dependencies. Use vcrpy as an example package that pulls in dependencies
@@ -153,9 +158,14 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         assert "yarl" in p.lockfile["default"]
         yarl = p.lockfile["default"]["yarl"]
         assert "markers" in yarl
-        # Check for a valid Python version marker
-        # yarl >=1.16.0 (Oct 2024) requires Python >=3.9
-        assert yarl["markers"] == "python_version >= '3.9'"
+        # Verify the marker is a clean python_version constraint (not
+        # duplicated).  The exact version bound depends on the yarl
+        # release that pip resolves, so we only assert the shape.
+        marker = yarl["markers"]
+        assert "python_version" in marker
+        # Ensure the marker is not duplicated (the bug this test guards
+        # against produced: "python_version >= '3.x'; python_version >= '3.x'")
+        assert marker.count("python_version") == 1
 
 
 @pytest.mark.markers

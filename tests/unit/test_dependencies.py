@@ -288,3 +288,72 @@ class TestCandidateEvaluatorPrereleases:
         assert "0.20b0" not in versions
         assert "0.50b0" in versions
         assert "0.60b0" in versions
+
+
+class TestTranslateMarkers:
+    """Tests for translate_markers() preserving extra == markers.
+
+    Regression tests for a bug where translate_markers() would strip
+    ``extra == 'name'`` markers entirely, breaking extras-conditional
+    dependencies in Pipfile.lock.
+    """
+
+    def test_preserves_extra_marker(self):
+        """extra == markers should be preserved in the output."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks'",
+        }
+        result = translate_markers(entry)
+        assert "extra ==" in result.get("markers", ""), f"extra marker was stripped: {result}"
+        assert "socks" in result["markers"]
+
+    def test_preserves_extra_with_other_markers(self):
+        """extra == should be preserved alongside other markers."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks' and python_version >= '3.8'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "extra ==" in markers, f"extra marker was stripped: {result}"
+        assert "socks" in markers
+        assert "python_version" in markers
+
+    def test_no_extra_marker_unchanged(self):
+        """Entries without extra markers should work as before."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "sys_platform == 'win32'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "win32" in markers
+        assert "extra" not in markers
+
+    def test_multiple_extras_preserved(self):
+        """Multiple extra markers should all be preserved."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks' and extra == 'security'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "socks" in markers
+        assert "security" in markers
+
+    def test_no_markers_entry(self):
+        """Entries without any markers should pass through."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {"version": "==1.0"}
+        result = translate_markers(entry)
+        assert "markers" not in result or result.get("markers", "") == ""

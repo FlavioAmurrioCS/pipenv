@@ -150,25 +150,50 @@ def translate_markers(pipfile_entry):
     new_pipfile = dict(pipfile_entry).copy()
     marker_set = set()
     os_name_marker = None
+    extra_marker_parts: list[str] = []
     if "markers" in new_pipfile:
         marker_str = new_pipfile.pop("markers")
         if marker_str:
             marker = str(Marker(marker_str))
             if "extra" not in marker:
                 marker_set.add(marker)
+            else:
+                # Preserve extra == parts while processing the rest normally
+                from pipenv.utils.markers import (
+                    contains_extra,
+                    get_contained_extras,
+                    get_without_extra,
+                )
+
+                marker_obj = Marker(marker)
+                if contains_extra(marker_obj):
+                    extras_in_marker = get_contained_extras(marker_obj)
+                    extra_marker_parts.extend(
+                        [
+                            f'extra == "{extra_val}"'
+                            for extra_val in sorted(extras_in_marker)
+                        ]
+                    )
+                    non_extra = get_without_extra(Marker(marker))
+                    if non_extra is not None:
+                        marker_set.add(str(non_extra))
     for m in pipfile_markers:
         entry = f"{pipfile_entry[m]}"
         if m != "markers":
             if m != "os_name":
                 marker_set.add(str(Marker(f"{m} {entry}")))
             new_pipfile.pop(m)
-    if marker_set:
-        markers_str = " and ".join(
-            f"{s}" if " and " in s else s for s in sorted(dict.fromkeys(marker_set))
-        )
-        if os_name_marker:
-            markers_str = f"({markers_str}) and {os_name_marker}"
-        new_pipfile["markers"] = str(Marker(markers_str)).replace('"', "'")
+    if marker_set or extra_marker_parts:
+        all_parts: list[str] = []
+        if marker_set:
+            markers_str = " and ".join(
+                f"{s}" if " and " in s else s for s in sorted(dict.fromkeys(marker_set))
+            )
+            if os_name_marker:
+                markers_str = f"({markers_str}) and {os_name_marker}"
+            all_parts.append(str(Marker(markers_str)).replace('"', "'"))
+        all_parts.extend(extra_marker_parts)
+        new_pipfile["markers"] = " and ".join(all_parts)
     return new_pipfile
 
 
