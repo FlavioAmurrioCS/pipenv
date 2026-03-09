@@ -388,11 +388,12 @@ class TestBuildPyprojectToml:
         assert 'requires-python = ">=3.8"' in toml
 
     def test_no_python_version(self):
+        """When Pipfile has no python version, a broad default is used."""
         from pipenv.uv_lock import _build_pyproject_toml
 
         project = self._make_project(required_python_version="")
         toml = _build_pyproject_toml(project, "default")
-        assert "requires-python" not in toml
+        assert 'requires-python = ">= 3.0"' in toml
 
     def test_multiple_indexes(self):
         from pipenv.uv_lock import _build_pyproject_toml
@@ -864,6 +865,74 @@ class TestParseUvLock:
 
         mylib = result[0]
         assert mylib["markers"] == "python_version >= '3.8'"
+
+    def test_git_source_url_decomposed(self, tmp_path):
+        """Git source URL is decomposed: bare URL, commit hash, subdirectory."""
+        from pipenv.uv_lock import _parse_uv_lock
+
+        lock_path = self._write_lock(
+            tmp_path,
+            """\
+            version = 1
+            requires-python = ">= 3.10"
+
+            [[package]]
+            name = "pipenv-resolver"
+            version = "0.0.0"
+            source = { virtual = "." }
+            dependencies = [
+                { name = "six" },
+            ]
+
+            [[package]]
+            name = "six"
+            version = "1.9.0"
+            source = { git = "https://github.com/benjaminp/six.git?rev=1.9.0#5efb522b0647f7467248273ec1b893d06b984a59" }
+        """,
+        )
+        project = self._make_project(packages={"six": {"git": "https://github.com/benjaminp/six.git", "ref": "1.9.0"}})
+        result = _parse_uv_lock(lock_path, project, "default")
+
+        assert len(result) == 1
+        pkg = result[0]
+        assert pkg["git"] == "https://github.com/benjaminp/six.git"
+        assert pkg["ref"] == "5efb522b0647f7467248273ec1b893d06b984a59"
+        assert "subdirectory" not in pkg
+
+    def test_git_source_with_subdirectory(self, tmp_path):
+        """Git source URL with subdirectory query param is extracted."""
+        from pipenv.uv_lock import _parse_uv_lock
+
+        lock_path = self._write_lock(
+            tmp_path,
+            """\
+            version = 1
+            requires-python = ">= 3.10"
+
+            [[package]]
+            name = "pipenv-resolver"
+            version = "0.0.0"
+            source = { virtual = "." }
+            dependencies = [
+                { name = "mypkg" },
+            ]
+
+            [[package]]
+            name = "mypkg"
+            version = "0.1.0"
+            source = { git = "https://github.com/org/repo.git?rev=main&subdirectory=parent_folder/mypkg#abc123def456" }
+        """,
+        )
+        project = self._make_project(
+            packages={"mypkg": {"git": "https://github.com/org/repo.git", "ref": "main", "subdirectory": "parent_folder/mypkg"}}
+        )
+        result = _parse_uv_lock(lock_path, project, "default")
+
+        assert len(result) == 1
+        pkg = result[0]
+        assert pkg["git"] == "https://github.com/org/repo.git"
+        assert pkg["ref"] == "abc123def456"
+        assert pkg["subdirectory"] == "parent_folder/mypkg"
 
 
 # ---------------------------------------------------------------------------

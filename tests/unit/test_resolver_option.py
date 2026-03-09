@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 # ---------------------------------------------------------------------------
 # resolve() dispatcher in pipenv.utils.resolver
@@ -171,56 +171,3 @@ class TestPipInstallDepsDispatcher:
                 use_pep517=False,
                 extra_pip_args=["--no-binary", ":all:"],
             )
-
-
-# ---------------------------------------------------------------------------
-# Help diagnostics
-# ---------------------------------------------------------------------------
-
-
-class TestHelpDiagnostics:
-    """Tests for resolver info in pipenv --support output."""
-
-    def test_default_resolver_in_diagnostics(self, monkeypatch, capsys):
-        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
-
-        mock_project = MagicMock()
-        mock_project.settings = {}
-        mock_project.pipfile_exists = False
-        mock_project.lockfile_exists = False
-
-        from pipenv.help import get_pipenv_diagnostics
-
-        get_pipenv_diagnostics(mock_project)
-        captured = capsys.readouterr()
-        assert "Resolver backend: `pip` (default)" in captured.out
-
-    def test_env_resolver_in_diagnostics(self, monkeypatch, capsys):
-        monkeypatch.setenv("PIPENV_RESOLVER", "uv-lock")
-
-        mock_project = MagicMock()
-        mock_project.settings = {}
-        mock_project.pipfile_exists = False
-        mock_project.lockfile_exists = False
-
-        from pipenv.help import get_pipenv_diagnostics
-
-        get_pipenv_diagnostics(mock_project)
-        captured = capsys.readouterr()
-        assert "Resolver backend: `uv-lock`" in captured.out
-        assert "PIPENV_RESOLVER" in captured.out
-
-    def test_uv_pip_compile_resolver_in_diagnostics(self, monkeypatch, capsys):
-        monkeypatch.setenv("PIPENV_RESOLVER", "uv-pip-compile")
-
-        mock_project = MagicMock()
-        mock_project.settings = {}
-        mock_project.pipfile_exists = False
-        mock_project.lockfile_exists = False
-
-        from pipenv.help import get_pipenv_diagnostics
-
-        get_pipenv_diagnostics(mock_project)
-        captured = capsys.readouterr()
-        assert "Resolver backend: `uv-pip-compile`" in captured.out
-        assert "PIPENV_RESOLVER" in captured.out

@@ -306,6 +306,10 @@ def _build_pyproject_toml(
     ):
         # Bare version like "3.10" — convert to ">= 3.10"
         requires_python = f">= {requires_python}"
+    if not requires_python:
+        # When the Pipfile has no [requires] section, use a broad default
+        # so uv considers wheels for all Python versions (matching pip behavior).
+        requires_python = ">= 3.0"
 
     # Get cross-category constraints for non-default categories
     constraint_deps: list[str] = []
@@ -612,14 +616,27 @@ def _parse_uv_lock(
             if index_name:
                 entry["index"] = index_name
         elif source.get("git"):
-            entry["git"] = source["git"]
-            # Parse ref from the git URL or separate field
-            # uv.lock format: source = { git = "https://...", rev = "abc123" }
-            # or the ref may be embedded differently
-            if "rev" in source:
-                entry["ref"] = source["rev"]
-            if source.get("subdirectory"):
-                entry["subdirectory"] = source["subdirectory"]
+            # uv.lock encodes git info in a single URL:
+            #   source = { git = "https://host/repo.git?rev=tag#commitsha" }
+            # The fragment is the resolved commit hash; query params hold
+            # rev/tag/branch/subdirectory.  We decompose the URL here.
+            from urllib.parse import parse_qs, urlparse
+
+            raw_git_url = source["git"]
+            parsed_url = urlparse(raw_git_url)
+
+            # Bare URL without query/fragment for the lockfile "git" field
+            bare_url = f"{parsed_url.scheme}://{parsed_url.netloc}{parsed_url.path}"
+            entry["git"] = bare_url
+
+            # Resolved commit hash lives in the URL fragment
+            if parsed_url.fragment:
+                entry["ref"] = parsed_url.fragment
+
+            # Subdirectory may be in query params
+            query_params = parse_qs(parsed_url.query)
+            if "subdirectory" in query_params:
+                entry["subdirectory"] = query_params["subdirectory"][0]
         elif source.get("editable"):
             entry["editable"] = True
             entry["path"] = source["editable"]
