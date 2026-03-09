@@ -158,9 +158,14 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         assert "yarl" in p.lockfile["default"]
         yarl = p.lockfile["default"]["yarl"]
         assert "markers" in yarl
-        # Check for a valid Python version marker
-        # yarl >=1.16.0 (Oct 2024) requires Python >=3.9
-        assert yarl["markers"] == "python_version >= '3.9'"
+        # Verify the marker is a clean python_version constraint (not
+        # duplicated).  The exact version bound depends on the yarl
+        # release that pip resolves, so we only assert the shape.
+        marker = yarl["markers"]
+        assert "python_version" in marker
+        # Ensure the marker is not duplicated (the bug this test guards
+        # against produced: "python_version >= '3.x'; python_version >= '3.x'")
+        assert marker.count("python_version") == 1
 
 
 @pytest.mark.markers
