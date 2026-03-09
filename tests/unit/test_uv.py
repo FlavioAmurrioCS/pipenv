@@ -115,7 +115,7 @@ class TestParseRequirementsLines:
         from pipenv.uv import parse_requirements_lines
 
         lines = [
-            "dataclasses-json @ https://files.pythonhosted.org/packages/85/94/1b30216f84c48b9e0646833f6f2dd75f1169cc04dc45c48fe39e644c89d5/dataclasses-json-0.5.7.tar.gz \\",
+            "dataclasses-json @ https://files.pythonhosted.org/packages/85/94/1b30216f84c48b9e0646833f6f2dd75f1169cc04dc45c48fe39e644c89d5/dataclasses-json-0.5.7.tar.gz \\",  # noqa: E501
             "    --hash=sha256:c2c11bc8214fbf709ffc369d11446ff6945254a7f09128154a7620613d8fda90",
         ]
         packages, index, _ = parse_requirements_lines(lines)

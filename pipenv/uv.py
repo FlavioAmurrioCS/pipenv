@@ -36,11 +36,11 @@ def _is_local_path_or_file_uri(pip_line):
         stripped = stripped[3:].strip()
 
     # file:// URIs
-    if stripped.startswith("file://") or stripped.startswith("file:///"):
+    if stripped.startswith(("file://", "file:///")):
         return True
 
     # Explicit local path patterns
-    if stripped.startswith("./") or stripped.startswith("../"):
+    if stripped.startswith(("./", "../")):
         return True
     if stripped == "." or stripped.startswith(".["):
         return True
@@ -383,7 +383,7 @@ def _get_pipfile_index_for_deps(project, category):
     return index_map
 
 
-def uv_resolve(cmd, st, project):
+def uv_resolve(cmd, st, project):  # noqa: PLR0912
     """Resolver backend that uses ``uv pip compile``.
 
     Runs ``uv pip compile`` to resolve dependencies, parses the output,
@@ -546,7 +546,7 @@ def uv_resolve(cmd, st, project):
 
     extras_constraints = {}  # {constraint_name: [extras]}
     non_extras_lines = []
-    for _name, pip_line in constraints.items():
+    for pip_line in constraints.values():
         stripped = pip_line.strip()
         # Check for extras like "requests[socks]" or "requests[socks,security]"
         bracket_match = re.match(r"^([^\[]+)\[([^\]]+)\](.*)", stripped)
@@ -601,7 +601,7 @@ def uv_resolve(cmd, st, project):
     if extras_only_packages:
         # Build a mapping of extras-only package → which extra(s) pulled them in.
         all_extras = []
-        for _pkg, elist in extras_constraints.items():
+        for elist in extras_constraints.values():
             all_extras.extend(elist)
 
         logger.debug(
@@ -805,7 +805,7 @@ def _make_uv_subprocess_run(project):
         # to ensure ALL configured indexes are available during install.
         cleaned_rest = []
         skip_next = False
-        for i, arg in enumerate(rest):
+        for _i, arg in enumerate(rest):
             if skip_next:
                 skip_next = False
                 continue

@@ -168,8 +168,12 @@ def translate_markers(pipfile_entry):
                 marker_obj = Marker(marker)
                 if contains_extra(marker_obj):
                     extras_in_marker = get_contained_extras(marker_obj)
-                    for extra_val in sorted(extras_in_marker):
-                        extra_marker_parts.append(f'extra == "{extra_val}"')
+                    extra_marker_parts.extend(
+                        [
+                            f'extra == "{extra_val}"'
+                            for extra_val in sorted(extras_in_marker)
+                        ]
+                    )
                     non_extra = get_without_extra(Marker(marker))
                     if non_extra is not None:
                         marker_set.add(str(non_extra))

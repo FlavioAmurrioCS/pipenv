@@ -203,10 +203,9 @@ def _pipfile_entry_to_pep508(name: str, entry: str | dict[str, Any]) -> str:
         "implementation_name",
         "implementation_version",
     }
-    marker_parts: list[str] = []
-    for key in sorted(_marker_keys):
-        if key in entry:
-            marker_parts.append(f"{key} {entry[key]}")
+    marker_parts: list[str] = [
+        f"{key} {entry[key]}" for key in sorted(_marker_keys) if key in entry
+    ]
     if markers_str:
         marker_parts.append(markers_str)
 
