@@ -4,6 +4,7 @@ import re
 import shutil
 import sys
 import sysconfig
+import tempfile
 from pathlib import Path
 
 from pipenv import environments, exceptions
@@ -77,7 +78,11 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
     ):
         cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
-        c = subprocess_run(cmd, env=pip_config)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Issue: https://github.com/pypa/pipenv/issues/6568
+            # Run virtualenv from an empty temporary directory to prevent PYTHONPATH pollution.
+            # Once we drop support for python3.10 we can add a -P to the `python -m virtualenv` call to avoid this workaround
+            c = subprocess_run(cmd, env=pip_config, cwd=temp_dir)
         err.print(f"[cyan]{c.stdout}[/cyan]")
         if c.returncode != 0:
             error = (
