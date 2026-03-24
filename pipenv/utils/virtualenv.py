@@ -4,13 +4,13 @@ import re
 import shutil
 import sys
 import sysconfig
-import tempfile
 from pathlib import Path
 
 from pipenv import environments, exceptions
 from pipenv.utils import Confirm, console, err
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.environment import ensure_environment
+from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_python, shorten_path
 
@@ -78,11 +78,13 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         "Creating virtual environment...", spinner=project.s.PIPENV_SPINNER
     ):
         cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
-        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
-            # Issue: https://github.com/pypa/pipenv/issues/6568
-            # Run virtualenv from an empty temporary directory to prevent PYTHONPATH pollution.
-            # Once we drop support for python3.10 we can add a -P to the `python -m virtualenv` call to avoid this workaround
-            c = subprocess_run(cmd, env=pip_config, cwd=temp_dir)
+
+        # Issue: https://github.com/pypa/pipenv/issues/6568
+        # Run virtualenv from an empty temporary directory to prevent PYTHONPATH pollution.
+        # Once we drop support for python3.10 we can add a -P to the `python -m virtualenv` call to avoid this workaround
+        temp_dir = create_tracked_tempdir()
+        c = subprocess_run(cmd, env=pip_config, cwd=temp_dir)
+
         err.print(f"[cyan]{c.stdout}[/cyan]")
         if c.returncode != 0:
             error = (
